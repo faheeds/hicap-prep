@@ -1017,12 +1017,80 @@ function parentHomeHTML(){
   </div>
   ${CLOUD && currentUserEmail() ? `<p class="note" style="margin-top:10px;">Signed in as ${currentUserEmail()}</p>` : ``}
   </div>
+  <div class="panel"><h2>Export your family's data</h2>
+    <p class="note">Download every practice / mock / program session you've logged. JSON preserves everything; CSV is spreadsheet-friendly.</p>
+    <div class="btnbar">
+      <button class="btn secondary" onclick="exportAsJSON()">Download JSON</button>
+      <button class="btn secondary" onclick="exportAsCSV()">Download CSV</button>
+    </div>
+  </div>
   <div class="panel"><h2>Delete family data</h2>
     <p class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</p>
     <div class="btnbar"><button class="btn clay" onclick="confirmDeleteAccount()">Delete my family's account</button></div>
   </div>`;
   return html;
 }
+/* ---------- DATA EXPORT (Epic 1, E1-8) ----------
+   Client-side export of every practice/mock/program session for the whole
+   family, in either JSON (round-trippable, includes every wrong-question
+   detail) or CSV (spreadsheet-friendly, one row per session). Both are
+   pure functions of the in-memory APP snapshot, so they work identically
+   in cloud mode and local mode. */
+function buildExportSnapshot(){
+  const users = Object.values(APP.students).map(st=>({
+    id: st.id, name: st.name, avatar: st.avatar,
+    grade: st.grade || null, cogatLevel: st.cogatLevel || null,
+    createdAt: st.createdAt || null,
+    streak: st.streak || {current:0,longest:0,lastDate:null},
+    history: (st.history || []).map(h=>({
+      date: h.date, title: h.title, kind: h.kind, weekKey: h.weekKey || null,
+      correct: h.correct, total: h.total, bySub: h.bySub || {},
+      wrongQuestions: h.wrongQuestions || []
+    }))
+  }));
+  return {
+    exportedAt: new Date().toISOString(),
+    familyId: APP._familyId || null,
+    students: users
+  };
+}
+function buildExportCSV(){
+  const rows = [["student_name","date","kind","title","week_key","correct","total","percent","subtests"]];
+  Object.values(APP.students).forEach(st=>{
+    (st.history || []).forEach(h=>{
+      const pct = h.total>0 ? Math.round(100*h.correct/h.total) : 0;
+      const subs = Object.keys(h.bySub||{}).map(k=>`${k}:${h.bySub[k].c}/${h.bySub[k].n}`).join(";");
+      rows.push([st.name, h.date, h.kind, h.title, h.weekKey || "", String(h.correct), String(h.total), String(pct), subs]);
+    });
+  });
+  return rows.map(r=>r.map(csvCell).join(",")).join("\n");
+}
+function csvCell(v){
+  const s = (v==null) ? "" : String(v);
+  // Escape per RFC 4180: any comma, quote, CR, or LF triggers quoting.
+  if(/[",\r\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function downloadFile(filename, mime, content){
+  try{
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }catch(e){ showAlert("Download failed: "+e.message); }
+}
+function exportAsJSON(){
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadFile(`hicap-prep-${stamp}.json`, "application/json", JSON.stringify(buildExportSnapshot(), null, 2));
+}
+function exportAsCSV(){
+  const stamp = new Date().toISOString().slice(0,10);
+  downloadFile(`hicap-prep-${stamp}.csv`, "text/csv;charset=utf-8", buildExportCSV());
+}
+
 async function confirmDeleteAccount(){
   showConfirm("Really delete every kid on your roster and all their history? This cannot be undone.", async ()=>{
     if(CLOUD && AUTH && AUTH.deleteAccount){
