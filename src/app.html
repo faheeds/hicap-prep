@@ -600,8 +600,12 @@ let S = {mode:"student", view:"roster",
   // Expand-all/Collapse-all toggle). Defaults to just the current week when
   // a student is selected — see openDefaultProgramWeeks().
   openWeeks:new Set([1]),
-  // Parent PIN error message — kept in state so re-render doesn't wipe it.
-  pinErr:""};
+  // Parent PIN — buffer and error kept in state so render() (which rebuilds
+  // #app.innerHTML from scratch) doesn't wipe them. pinBuffer is the source
+  // of truth; render mirrors it onto the hidden #pinInput's value attribute
+  // for keyboard/AT users and for the pre-Epic-4 test path that writes to
+  // #pinInput.value directly.
+  pinErr:"", pinBuffer:""};
 
 function currentStudent(){ return CUR ? APP.students[CUR] : null; }
 
@@ -1896,14 +1900,19 @@ function leaderboardHTML(){
 }
 
 /* ---------- PARENT AREA ---------- */
-// PIN gate — design screen 7. Buffer digits into #pinInput so the existing
-// tests (which do `pinInput.value = ...; tryPin();`) keep working; the
-// keypad clicks call pinPress()/pinDelete() which manipulate the same
-// input. A submit fires automatically as soon as the 4th digit lands.
+// PIN gate — design screen 7.
+//
+// The digit buffer lives in S.pinBuffer (state), NOT in the #pinInput DOM
+// value. render() rebuilds #app.innerHTML from scratch on every keypress,
+// so a DOM-only buffer would get wiped after every press — that was the
+// E4-7-ship bug (each press reset the buffer to a single digit, dots never
+// grew past 1, validation never fired). Render now stamps S.pinBuffer onto
+// the hidden input's value attribute for keyboard/AT users and for tests
+// that write #pinInput.value directly and call tryPin().
 function parentGateHTML(){
   const setupHint = (CLOUD && APP.pin==="1234") ? "Any four digits sets the PIN the first time." : "Default is 1234 until you change it.";
-  const bufLen = _pinBufferLen();
-  const dots = [0,1,2,3].map(i=>`<span class="${i<bufLen?"filled":""}"></span>`).join("");
+  const buf = S.pinBuffer || "";
+  const dots = [0,1,2,3].map(i=>`<span class="${i<buf.length?"filled":""}"></span>`).join("");
   const keys = ["1","2","3","4","5","6","7","8","9",null,"0","del"];
   const keypad = keys.map(k=>{
     if(k===null) return `<div class="keypad-blank"></div>`;
@@ -1915,41 +1924,39 @@ function parentGateHTML(){
     <h2 class="heading">Parent area</h2>
     <p class="note" style="text-align:center; max-width:34ch;">Four digits. Progress, mock tests and settings live behind here. ${setupHint}</p>
     <div class="pin-dots" aria-hidden="true">${dots}</div>
-    <input id="pinInput" class="sr-only" maxlength="4" inputmode="numeric" aria-label="PIN" oninput="onPinInput()">
+    <input id="pinInput" class="sr-only" maxlength="4" inputmode="numeric" aria-label="PIN" value="${buf}" oninput="onPinInput()">
     <div id="pinErr" role="status" class="pin-err-line">${S.pinErr||""}</div>
     <div class="keypad">${keypad}</div>
     <button class="btn btn-ghost" onclick="switchStudent()">Back to students</button>
   </div>`;
 }
-function _pinBufferLen(){
-  const el = typeof document!=="undefined" ? document.getElementById("pinInput") : null;
-  return el ? (el.value || "").replace(/\D/g,"").slice(0,4).length : 0;
-}
 function pinPress(d){
-  const el = document.getElementById("pinInput");
-  if(!el) return;
-  const cur = (el.value||"").replace(/\D/g,"").slice(0,3);
-  el.value = cur + d;
-  if(el.value.length === 4) tryPin(); else render();
+  if((S.pinBuffer||"").length >= 4) return;
+  S.pinBuffer = (S.pinBuffer||"") + d;
+  render();
+  // render() has already stamped the fresh value onto the hidden input, so
+  // tryPin() will read the correct 4-digit buffer.
+  if(S.pinBuffer.length === 4) tryPin();
 }
 function pinDelete(){
-  const el = document.getElementById("pinInput");
-  if(!el) return;
-  el.value = (el.value||"").slice(0,-1);
+  S.pinBuffer = (S.pinBuffer||"").slice(0,-1);
   render();
 }
 function onPinInput(){
-  // Called when a real keyboard fills the (screen-reader-only) input.
+  // Real keyboard typed into the sr-only input. Mirror into state so the
+  // dots update and pinPress/pinDelete stay in sync with the DOM.
   const el = document.getElementById("pinInput");
   if(!el) return;
-  el.value = (el.value||"").replace(/\D/g,"").slice(0,4);
-  if(el.value.length === 4) tryPin(); else render();
+  S.pinBuffer = (el.value||"").replace(/\D/g,"").slice(0,4);
+  if(S.pinBuffer.length === 4) { render(); tryPin(); }
+  else render();
 }
 async function tryPin(){
   const inputEl = document.getElementById("pinInput");
   const v = (inputEl ? inputEl.value : "").trim();
-  function showErr(msg){ S.pinErr = msg; if(inputEl) inputEl.value = ""; render(); }
+  function showErr(msg){ S.pinErr = msg; S.pinBuffer = ""; if(inputEl) inputEl.value = ""; render(); }
   function clearErr(){ S.pinErr = ""; }
+  function unlock(){ S.pinBuffer = ""; S.pinErr = ""; S.parentUnlocked = true; S.view = "parent-home"; render(); }
   clearErr();
   if(!/^\d{4}$/.test(v)){ showErr("Enter a 4-digit PIN."); return; }
 
@@ -1957,11 +1964,11 @@ async function tryPin(){
   if(CLOUD && AUTH && AUTH.verifyPin){
     try{
       const r = await AUTH.verifyPin(v);
-      if(r.ok){ S.parentUnlocked=true; S.view="parent-home"; render(); return; }
+      if(r.ok){ unlock(); return; }
       if(r.reason==="no_pin_set"){
         // First-time setup — treat this PIN entry as the new PIN, save it, unlock.
         const s = await AUTH.setPin(v);
-        if(s.ok){ S.parentUnlocked=true; S.view="parent-home"; render(); return; }
+        if(s.ok){ unlock(); return; }
         showErr(s.error || "Could not set PIN."); return;
       }
       if(r.reason==="locked"){
@@ -1975,7 +1982,7 @@ async function tryPin(){
   }
 
   // Local mode fallback (unchanged pre-Epic-1 behaviour).
-  if(v===APP.pin){ S.parentUnlocked=true; S.view="parent-home"; render(); }
+  if(v===APP.pin){ unlock(); }
   else showErr("Incorrect PIN.");
 }
 // Parent header row — kicker (day/week) + heading + right-aligned Lock ghost.

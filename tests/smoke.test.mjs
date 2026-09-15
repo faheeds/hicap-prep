@@ -204,6 +204,43 @@ test("removing a student survives a blocked native confirm()", () => {
   assert.ok(!window.APP.students[id], "student should be removed");
 });
 
+test("PIN keypad: clicking the actual digit buttons in sequence unlocks parent mode", () => {
+  // Regression guard for E4-7 shipping the keypad broken: pinPress wrote to
+  // #pinInput.value, then render() rebuilt the <input> with no value attr,
+  // so every keypad click reset the buffer to a single digit and validation
+  // never fired. The old tests only exercised the #pinInput.value = ... path,
+  // which bypassed the bug entirely.
+  window.S.mode = "parent";
+  window.S.view = "parent-gate";
+  window.S.parentUnlocked = false;
+  window.APP.pin = "1234";
+  window.S.pinErr = "";
+  window.render();
+
+  for (const d of ["1","2","3","4"]) {
+    const btn = doc.querySelector(`.keypad button[aria-label="Digit ${d}"]`);
+    assert.ok(btn, `expected a keypad button for digit ${d}`);
+    btn.click();
+  }
+
+  assert.equal(window.S.parentUnlocked, true,
+    "four keypad clicks matching APP.pin should have driven validation to success");
+});
+
+test("PIN keypad: dots reflect the running digit buffer, not just the last press", () => {
+  window.S.mode = "parent";
+  window.S.view = "parent-gate";
+  window.S.parentUnlocked = false;
+  window.APP.pin = "1234";
+  window.S.pinErr = "";
+  window.render();
+
+  const press = (d) => doc.querySelector(`.keypad button[aria-label="Digit ${d}"]`).click();
+  press("9"); press("8");
+  const filled = doc.querySelectorAll(".pin-dots span.filled").length;
+  assert.equal(filled, 2, "after two presses the dots should show 2 filled, not 1");
+});
+
 test("updateStreak writes streak.lastDate as a YYYY-MM-DD local date (matches Postgres date column)", () => {
   const anyId = Object.keys(window.APP.students)[0];
   const st = window.APP.students[anyId];
