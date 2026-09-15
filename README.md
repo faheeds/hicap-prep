@@ -3,6 +3,11 @@
 CogAT prep app for gifted/advanced-learning admissions testing — 10-week guided
 program, family roster, parent-controlled timed mock tests.
 
+> **Not affiliated.** HiCap Prep is not affiliated with, endorsed by, or
+> sponsored by Riverside Insights or the makers of CogAT®. CogAT is a
+> registered trademark of Riverside Insights; references to CogAT here are
+> strictly nominative — this is a third-party practice tool.
+
 - **Current app:** `src/app.html` (single-file prototype, open it directly in a browser)
 - **What to build next, in order:** `docs/PRODUCT_BACKLOG.md`
 - **Why it exists / how it monetizes:** `docs/BUSINESS_PLAN.md`

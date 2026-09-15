@@ -66,3 +66,21 @@ test("E2-3: app footer also links to Terms of Service", () => {
   const html = footer.innerHTML;
   assert.match(html, /href="terms\.html"/i, "footer must link to terms.html");
 });
+
+test("E2-4: the 'not affiliated' disclaimer is present on every public surface", () => {
+  // Every public-facing file that mentions CogAT should also carry the
+  // disclaimer, since the two together form the trademark-safe nominative-use
+  // pattern. If someone adds a new such surface later, they should add the
+  // disclaimer at the same time — this test catches the omission.
+  const disclaimer = /not affiliated with[\s\S]*?Riverside/i;
+  const filesRequiringDisclaimer = [
+    new URL("../src/app.html", import.meta.url),
+    new URL("../src/privacy.html", import.meta.url),
+    new URL("../src/terms.html", import.meta.url),
+    new URL("../README.md", import.meta.url),
+  ];
+  for (const f of filesRequiringDisclaimer) {
+    const body = readFileSync(f, "utf-8");
+    assert.match(body, disclaimer, `${f.pathname} mentions CogAT but is missing the disclaimer`);
+  }
+});
