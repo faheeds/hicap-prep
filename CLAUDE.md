@@ -25,6 +25,15 @@ debt, not a design decision**. Epic 1 in the backlog replaces it with real
 per-family accounts. Don't quietly reintroduce the shared-blob pattern while
 touching auth or storage code for any other reason.
 
+**Second known limitation:** the question bank only covers CogAT Level 13 (grade
+7) — there is no `level`/`grade` dimension anywhere in `DRILLS` or the student
+roster yet. Epic 5 (`docs/PRODUCT_BACKLOG.md`) plans the expansion to grades
+3–11, starting with a data-model refactor (E5-0) that must land before any new
+grade's content is authored. Epic 9 covers grade 1 separately — its CogAT format
+is picture-based, not text-based, and doesn't fit the current architecture at
+all. Don't start authoring content for another grade before E5-0 ships, or it'll
+need reshaping once the `level` key exists.
+
 ## How to work through the backlog
 
 1. Work `docs/PRODUCT_BACKLOG.md` **in priority order, one epic at a time.** Don't

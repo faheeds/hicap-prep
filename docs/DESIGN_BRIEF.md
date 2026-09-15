@@ -5,6 +5,30 @@ sync if the brief changes — Claude Code should treat the resulting design syst
 (once delivered) as the source of truth for colors, type, spacing, and component
 states when implementing UI, rather than inventing its own.
 
+## ⚠️ Scope update since this brief was sent
+
+The prompt below (sent to Claude Design) was written when this product only served
+grade 7 / CogAT Level 13. Since then, `docs/PRODUCT_BACKLOG.md` Epic 5 added a plan
+to expand to grades 3–11, and Epic 9 for grade 1 separately. Two things that means
+for the design work, once it's back (or for a follow-up brief if needed):
+
+1. **The roster "add student" flow needs a grade/level field.** The brief below
+   describes the student picker as "name + avatar/color" only — it should also
+   capture (or infer from) each student's grade, since that now determines which
+   question bank they draw from. This is a real UI addition, not just a data field:
+   somewhere (roster card, dashboard header, program view) needs to make a student's
+   grade visible, especially once a family has kids at different grades on one roster.
+2. **The product name itself is an open question** (see backlog row E4-6). "Level 13
+   Prep" is grade-7-specific branding. If that gets renamed before implementation,
+   the design system's naming/wordmark treatment will need a pass — flag this before
+   handing final designs to Claude Code rather than building the wordmark around a
+   name that might change.
+
+Neither of these should block finishing the current design pass — the design system
+(palette, type, spacing, component states) and most screens are unaffected. Just
+don't treat the current brief's framing ("7th graders," "Level 13 Prep") as final
+once those two decisions land.
+
 > Design a web app called "Level 13 Prep" — a CogAT (cognitive abilities test) practice
 > platform that 7th graders use daily for ten weeks to get ready for a gifted-program
 > admissions test, with a lightweight parent-control layer for running timed mock exams.
@@ -69,3 +93,7 @@ states when implementing UI, rather than inventing its own.
 2. Point Claude Code at the exported screens/assets and have it rebuild `src/app.html`
    (or its successor once Epic 1's backend work starts) to match, rather than
    free-styling the CSS from the prompt alone.
+3. Check the scope-update note above against what actually came back — if the grade
+   selector and naming decision weren't addressed (likely, since the original brief
+   didn't ask for them), send a short follow-up prompt covering just those two things
+   rather than a full re-brief.

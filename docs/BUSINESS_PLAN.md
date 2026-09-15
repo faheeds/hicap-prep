@@ -36,7 +36,7 @@ What's already built, and why each piece matters commercially:
 
 - **540-question bank across 3 tiers and 9 subtests**, randomly sampled every session — the single biggest complaint about competing workbooks is "it's the same 50 questions," and this is already solved.
 - **10-week guided program** mapped to a real testing calendar — turns "here's a pile of questions" into "here's what to do today," which is the actual thing parents are willing to pay for over free content.
-- **Multi-child roster** — most target customers have 2+ kids who will eventually go through this; a family-priced product converts better than a per-seat one.
+- **Multi-child roster** — most target customers have 2+ kids who will eventually go through this; a family-priced product converts better than a per-seat one. **This promise only holds if the content does, too** — see the multi-grade note under Section 4.
 - **Parent-gated, timed mock tests** — addresses the single highest-leverage prep factor (comfort under a countdown clock) and gives parents a supervisory role, which matters for trust.
 - **Effort-based leaderboard and badges** — gamification without turning it into an accuracy-shaming contest, which is a deliberate and defensible design choice for a product marketed to parents who are (rightly) sensitive about kids' self-esteem around testing.
 
@@ -54,6 +54,8 @@ What's already built, and why each piece matters commercially:
 - Homeschool co-ops and umbrella schools, who often independently seek out enrichment/testing prep content.
 
 **Market sizing (directional, not precise):** CogAT alone is administered to well over a million students annually across the districts that use Riverside Insights products, with a meaningful subset going through parent-initiated (not just school-initiated) referral and prep, especially in districts — like Bellevue — with dense, prep-motivated communities. Even a small single-digit-percent share of "parents who would pay for structured prep" in a few hundred target districts represents a real business, without needing to win the whole national market on day one.
+
+**This market is bigger than "grade 7" implies.** The current build only has content for CogAT Level 13 (grade 7), but most districts — including Bellevue — accept parent-initiated testing applications across grades 1 and 3–11, not just one grade. That's up to ten addressable grade-cohorts per district instead of one, and it's also what makes the Family Pass pricing in Section 5 a real value proposition rather than a nominal one: a family with kids in three different grades only gets genuine "cover everyone in the house" value once the content actually covers everyone in the house. See `docs/PRODUCT_BACKLOG.md` Epic 5 for the phased content-expansion plan (grades 3–11 first; grade 1 is a separate initiative — its CogAT format is picture-based, not text-based, and needs its own build).
 
 **A natural first market:** you're already inside the exact community this product is built for. Bellevue School District families going through HICAP testing are the same demographic Local Bigger Burger already serves in that neighborhood — that's a genuine, low-cost pilot distribution channel (in-store flyer, QR code at checkout, a mention in any parent-facing communication) before spending a dollar on paid acquisition elsewhere.
 
@@ -74,12 +76,12 @@ Prep activity is sharply seasonal — it clusters in the 8–14 weeks before a d
 | **Tutor / Center License** | Custom, ~$300–1,500/year per location | White-label option, bulk student seats, usage reporting for the center's own parents |
 | **District/PTA License** | Custom | Bulk family passes distributed through the district or PTA at a negotiated rate; typically the district or PTA pays, not individual families |
 
-This uses the existing multi-student architecture directly — the "Family Pass" is exactly the roster feature you already built, just metered.
+This uses the existing multi-student architecture directly — the "Family Pass" is exactly the roster feature you already built, just metered. **Once Epic 5's multi-grade content ships, the Family Pass should cover whatever CogAT level each roster kid actually needs, automatically** — that's the whole point of "one price, every kid in the house." Don't undercut it by making each grade a separate paid add-on (see the note below, which reflects an earlier draft of this plan — updated here).
 
 **Secondary revenue ideas (later, not day one):**
-- Add-on levels for other grades once the bank is expanded (a family with a 4th grader and a 7th grader buys two passes).
 - Printable "cheat sheet" PDF add-on for offline practice.
 - Affiliate/referral credit: refer another family, both get a discount — leverages the fact that HICAP prep is a communal, word-of-mouth-driven activity in most districts.
+- ~~Add-on levels for other grades once the bank is expanded~~ — superseded: multi-grade content is now part of the core Family Pass value proposition (Section 4), not a paid add-on. A per-grade upsell would work against the product's main differentiator.
 
 ---
 
@@ -117,9 +119,10 @@ Rough sequencing, not a committed timeline:
 
 1. **Real accounts + backend.** Replace shared local/cloud storage with actual user auth and a real database (Supabase or Firebase are both fast paths for a small team; you already have the technical background to build this directly).
 2. **Payments.** Stripe Checkout for one-time seasonal passes; Stripe Billing if the annual auto-renew tier is offered.
-3. **Content expansion beyond Level 13.** Each additional CogAT level is a bounded, repeatable content-production task using the same pipeline already built for Level 13 — this is the most direct lever for expanding total addressable market.
-4. **Parent-facing polish.** A proper onboarding flow, a real privacy policy and terms of service, and a cleaner "why this works" landing page aimed at a parent who's never seen the product before (today's UI assumes the person opening it already knows what it is).
-5. **Basic analytics** for you: signup → paid conversion, program completion rate, and mock-test completion rate are the three numbers that matter most for iterating pricing and messaging.
+3. **Content expansion, Grades 3–11.** Requires one data-model refactor first (add a `level` dimension to the question bank and student roster — see `docs/PRODUCT_BACKLOG.md` Epic 5, row E5-0), then each additional CogAT level is a bounded, repeatable content-production task using the same authoring pipeline already built for Level 13. This is the most direct lever for expanding total addressable market and the thing that makes the Family Pass pricing model actually deliver on its promise. Grade 1 (Level 8) is explicitly out of scope for this phase — its picture-based format needs a separate build (Epic 9).
+4. **Decide the product name.** "Level 13 Prep" works as a name when the product only serves grade 7; it undersells or confuses the product once other grades ship. Resolve this before the landing page (next item) goes live — the landing page has to speak to every grade's parent, not just grade 7's.
+5. **Parent-facing polish.** A proper onboarding flow, a real privacy policy and terms of service, and a cleaner "why this works" landing page aimed at a parent who's never seen the product before (today's UI assumes the person opening it already knows what it is).
+6. **Basic analytics** for you: signup → paid conversion, program completion rate, and mock-test completion rate are the three numbers that matter most for iterating pricing and messaging.
 
 ---
 

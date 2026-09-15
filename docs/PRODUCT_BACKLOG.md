@@ -11,11 +11,12 @@ This is written to be fed directly to Claude Code, one epic (or even one row) at
 1. **E1 — Backend & real accounts** (everything else depends on this)
 2. **E2 — Compliance** (must ship alongside E1, not after — it's a launch blocker, not a checkbox)
 3. **E3 — Payments & paywall**
-4. **E4 — Paid-launch product gaps** (onboarding, security hardening, testing)
-5. **E5 — Content expansion** (more grades = bigger market)
+4. **E4 — Paid-launch product gaps** (onboarding, security hardening, testing, naming decision)
+5. **E5 — Multi-grade content expansion, Grades 3–11** (this is what makes the Family Pass promise — "one price, every kid in the house" — actually true; see `docs/BUSINESS_PLAN.md` §3/§5)
 6. **E6 — Growth & analytics**
 7. **E7 — B2B / district & tutor licensing**
 8. **E8 — Platform & distribution (PWA, app stores)**
+9. **E9 — Grade 1 / CogAT Level 8** (separate initiative, picture-based format — deliberately last, see epic notes)
 
 ---
 
@@ -42,7 +43,7 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 | E0-15 | ✅ | In-app modal system (no native `alert`/`confirm`/`prompt` dependency) |
 | E0-16 | ✅ | Responsive single-file layout, no build step, no external dependencies |
 
-**Known debt already flagged (carry into Epic 1/4):** all data lives in one shared, unauthenticated bucket; the parent PIN is compared in client-side JS (viewable/bypassable via devtools); there's no real user identity at all — "students" are just names in a shared blob.
+**Known debt already flagged (carry into Epic 1/4):** all data lives in one shared, unauthenticated bucket; the parent PIN is compared in client-side JS (viewable/bypassable via devtools); there's no real user identity at all — "students" are just names in a shared blob. **Also scope debt:** the question bank and every sampling function only know about one CogAT level (Level 13 / grade 7) — there's no `grade`/`level` dimension anywhere in the data model yet. See Epic 5.
 
 ---
 
@@ -52,7 +53,7 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 |---|---|---|---|---|---|
 | E1-1 | P0 | ⬜ | Choose & stand up backend | Pick a backend (Supabase is the fastest path: Postgres + Auth + row-level security in one). Project created, connected. | `npx supabase init`; keep it simple, one Postgres project |
 | E1-2 | P0 | ⬜ | Parent account auth | Email/password or magic-link signup & login for the **parent** (not the kid). Session persists across visits. | Supabase Auth; store session token client-side, gate parent-mode routes on it |
-| E1-3 | P0 | ⬜ | Data model migration | Design real tables: `families`, `students`, `attempts` (history rows), `badges_earned`. One family = one parent account = private data. | Replace the single shared JSON blob with normalized tables |
+| E1-3 | P0 | ⬜ | Data model migration | Design real tables: `families`, `students` (include a `cogat_level` or `grade` column even though only Level 13 content exists yet — see Epic 5), `attempts` (history rows), `badges_earned`. One family = one parent account = private data. | Replace the single shared JSON blob with normalized tables; get the `grade` column in now so Epic 5 isn't a second migration |
 | E1-4 | P0 | ⬜ | Row-level security | A family can only ever read/write its own rows — enforced at the database level, not just in app logic. | Supabase RLS policies keyed on `auth.uid()` |
 | E1-5 | P0 | ⬜ | Replace `Store` layer | Swap every `window.storage`/`localStorage` call for real API calls (Supabase client SDK) behind the same `loadApp()`/`saveApp()` interface so the rest of the app barely changes. | This is the highest-leverage refactor — isolate it behind one module |
 | E1-6 | P0 | ⬜ | Server-verified parent PIN | Move PIN check to a server function; never send/compare the PIN in client JS. Add basic rate limiting (e.g., lock out after 5 bad attempts for 5 minutes). | Supabase Edge Function or equivalent; store a hashed PIN, not plaintext |
@@ -98,18 +99,41 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 | E4-3 | P1 | ⬜ | Accessibility pass | Keyboard navigation through the quiz runner, ARIA labels on custom controls, color-contrast check on the palette. | |
 | E4-4 | P2 | ⬜ | Email reminders | Optional weekly digest to parents ("3 lessons left this week") and streak-risk nudges. | Needs consent (opt-in), ties to E2-2 |
 | E4-5 | P2 | ⬜ | Printable PDF progress report | One-click export of a student's program progress + mastery bars, useful for parents sharing with a tutor. | |
+| E4-6 | P1 | ⬜ | Decide product name/brand for multi-grade scope | "Level 13 Prep" (app title, repo name, file names) anchors the whole brand to grade 7 specifically. Once Epic 5 ships other grades, that name undersells or confuses the product. Decide: keep it as a sub-brand ("Level 13 Prep" becomes the grade-7 track name inside a bigger product), or rename the whole thing. | This is a founder decision, not something to silently resolve in code — resolve it before E4-1 (landing page) ships, since that page has to explain the product to every grade's parent, not just grade 7's |
 
 ---
 
-## Epic 5 — Content expansion (P1/P2)
+## Epic 5 — Multi-grade content expansion: Grades 3–11 (P1/P2)
 
-| ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes |
+BSD (and most CogAT districts) accept parent-initiated testing applications for grades 1 and 3–11; grades K and 2 are auto-screened by the district, so there's no parent-facing product need there. CogAT's format is consistent across grades 3–11 (same 9 subtests, same Verbal/Quant/Nonverbal structure — this app's existing architecture already fits it) but changes structurally for grade 1 (Level 8: picture-based, no reading) — that's why grade 1 is split out into its own epic (E9) instead of folded in here.
+
+| Grade | CogAT Level | Format |
+|---|---|---|
+| 3 | 9 | Text-based — same structure as Level 13 |
+| 4 | 10 | Text-based |
+| 5 | 11 | Text-based |
+| 6 | 12 | Text-based |
+| 7 | 13 | ✅ Already built |
+| 8 | 14 | Text-based |
+| 9 | 15 | Text-based |
+| 10 | 16 | Text-based |
+| 11 | 17 | Text-based |
+
+| ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes for Claude Code |
 |---|---|---|---|---|---|
-| E5-1 | P1 | ⬜ | Reusable content-authoring pipeline | Turn the Python/JSON merge process already used to build the Level 13 bank into a repeatable script/template for any future level. | This already exists informally from development — just formalize it |
-| E5-2 | P1 | ⬜ | CogAT Level 11 bank (grade 5) | Same structure as Level 13: 9 subtests × 3 tiers × 20 questions. | Biggest single lever for expanding the addressable market |
-| E5-3 | P2 | ⬜ | CogAT Levels 9–10 (grades 3–4) | | |
-| E5-4 | P2 | ⬜ | CogAT Levels 14–17 (grades 8–11) | | |
-| E5-5 | P2 | ⬜ | Grow existing Level 13 pools further | Use real usage data (are families exhausting pools within a season?) to decide if 20/pool needs to grow. | Data-driven — don't do this speculatively |
+| E5-0 | P1 | ⬜ | **Data model refactor: add a level dimension** | `DRILLS` is currently keyed `battery → tier → subtest`. Add `level` as the outermost key: `DRILLS[cogatLevel][battery][tier][subtest]`. Thread a `level` parameter through every function that reads it: `sampleQuestions`, `collectQuestions`, `collectMixedSpeed`, `collectMock`, `weekPlan`. Add a grade/level field to the student roster (parent sets it once when adding a student; map grade → CogAT level via the table above). | **Prerequisite for every other row in this epic** — do this first, before authoring any new content. Existing Level 13 content becomes `DRILLS[13][...]` with no data loss. This is a contained refactor (~1 session), not a rewrite — the sampling/program/mock logic is already written generically per-battery/tier, it just needs one more key |
+| E5-1 | P1 | ⬜ | Reusable content-authoring pipeline | Formalize the Python/JSON merge process already used to build the Level 13 bank into a repeatable script: define a question "template" per subtest type (e.g. "word-relationship analogy," "double-then-subtract-one number series"), recalibrate vocabulary/number ranges per grade level, generate the pool. | This already exists informally from Level 13's development — the highest-leverage row after E5-0, since every level bank after this reuses it |
+| E5-2 | P1 | ⬜ | Nonverbal (FC/FM/PF) recalibration pass | Nonverbal/spatial-reasoning content transfers across grades with light recalibration (more shapes/steps at harder levels) rather than full re-authoring — unlike Verbal and Quant, which need real grade-level tuning. Confirm this holds and build the lighter-weight recalibration path first. | Cheapest win in the epic — do this before the heavier Verbal/Quant authoring work per level |
+| E5-3 | P1 | ⬜ | CogAT Level 12 bank (grade 6) | 9 subtests × 3 tiers × 20 questions, via the E5-1 pipeline. | Build first — closest in difficulty to the already-tuned Level 13 content, and the most likely immediate sibling-upsell (a grade-7 family often has a grade-6 kid at home) |
+| E5-4 | P1 | ⬜ | CogAT Level 14 bank (grade 8) | Same. | Same rationale as E5-3, other direction |
+| E5-5 | P2 | ⬜ | CogAT Level 11 bank (grade 5) | Same. | |
+| E5-6 | P2 | ⬜ | CogAT Level 15 bank (grade 9) | Same. | |
+| E5-7 | P2 | ⬜ | CogAT Level 9 bank (grade 3) | Same. | Furthest from Level 13 in vocabulary/complexity — expect more authoring time per pool than E5-3/E5-4 |
+| E5-8 | P2 | ⬜ | CogAT Level 10 bank (grade 4) | Same. | |
+| E5-9 | P2 | ⬜ | CogAT Level 16 bank (grade 10) | Same. | |
+| E5-10 | P2 | ⬜ | CogAT Level 17 bank (grade 11) | Same. | |
+| E5-11 | P1 | ⬜ | Level selector in the UI | Browse mode and the free-practice picker need a grade/level selector alongside battery/tier. The 10-week program already reads a student's assigned level implicitly once E5-0 lands — just needs the roster "add student" form to capture it. | Depends on E5-0 |
+| E5-12 | P2 | ⬜ | Grow existing pools further (any level) | Use real usage data — are families exhausting a level's pools within a season? — to decide if 20/pool needs to grow for that level. | Data-driven, per level — don't do this speculatively across the board |
 
 ---
 
@@ -142,6 +166,19 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 | E8-1 | P2 | ⬜ | PWA installability | Web app manifest + service worker so it can be "installed" to a phone home screen; cache the question bank for offline practice. | |
 | E8-2 | P3 | ⬜ | Push notifications | Streak-risk and mock-test-reminder pushes, opt-in only. | Depends on E8-1 |
 | E8-3 | P3 | ⬜ | Native app store listing | Wrap the PWA (Capacitor or similar) for iOS/Android app store discoverability. | Only worth it once organic web growth plateaus |
+
+---
+
+## Epic 9 — Grade 1 / CogAT Level 8 (P3, separate initiative)
+
+Deliberately last, and deliberately its own epic rather than a row in Epic 5: grade 1's CogAT format is **not just easier, it's structurally different** — no Sentence Completion, no reading required at all. The Verbal battery is Picture Classification and Picture Analogies instead. That means this can't be built by reusing the existing text-based question shape with simpler words; it needs real image content and probably audio narration (a 6-year-old may not reliably read a prompt even if the questions themselves are pictures). Revisit this once Epic 5 has usage/revenue data to justify the separate investment.
+
+| ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes |
+|---|---|---|---|---|---|
+| E9-1 | P3 | ⬜ | Picture-based question format | New question type: image + image-option answers, no text required to answer. | This is a new rendering path in the quiz runner, not just new content |
+| E9-2 | P3 | ⬜ | Audio narration | Prompts read aloud, matching how the real proctor-paced, audio-led CogAT format works at this age. | |
+| E9-3 | P3 | ⬜ | Age-appropriate quiz UI | Bigger touch targets, simpler navigation, likely needs a parent/guardian present rather than fully independent use (unlike grades 3+). | Revisit the "kid operates this independently" assumption baked into the rest of the app for this age group specifically |
+| E9-4 | P3 | ⬜ | Level 8 content bank | Picture Classification + Picture Analogies pools, via original imagery (not text templates from E5-1's pipeline — this needs its own authoring approach). | |
 
 ---
 
