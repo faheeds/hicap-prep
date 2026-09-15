@@ -686,6 +686,44 @@ function pfBuildTier1(){
   });
 }
 DRILLS.nonverbal[1].PF = pfBuildTier1();
+
+/* =========================================================
+   FIGURE CLASSIFICATION (nonverbal / FC) — Tier 1 rebuild.
+   =========================================================
+   Replaces the previous 20-item pool, which had 6 items sharing an
+   identical rule and a verbatim explanation. This pool is the worked
+   example from docs/ITEM_WRITING_STANDARDS.md and covers 8 distinct
+   rule types (round-vs-edged x3, fill x3, size x3, count x3,
+   direction x3, same-shape-rotated x2, pattern-break x2,
+   combined-attribute x1) — no rule type exceeds the 15% cap.
+   Same {q, o, a, e} shape as existing content; q is uniform per the
+   Figure Classification format.
+   Flagged by that doc's §6, deliberately not fixed by this pass:
+   these are still Unicode glyphs, not real inline SVG. That's the
+   next pass — same treatment PF Tier 1 already got. */
+DRILLS.nonverbal[1].FC = [
+  {q:"Which one does NOT belong?",o:["▲","■","◆","●"],a:3,e:"● is the only rounded shape; the others are straight-edged polygons."},
+  {q:"Which one does NOT belong?",o:["★","◆","●","▲"],a:2,e:"● is the only rounded shape; the others are straight-edged polygons."},
+  {q:"Which one does NOT belong?",o:["⬠","■","▲","●"],a:3,e:"● is the only rounded shape; the others are straight-edged polygons."},
+  {q:"Which one does NOT belong?",o:["●","●","○","●"],a:2,e:"○ is unfilled (outline); the other three are solid."},
+  {q:"Which one does NOT belong?",o:["▲","△","▲","▲"],a:1,e:"△ is unfilled (outline); the other three are solid."},
+  {q:"Which one does NOT belong?",o:["■","■","■","□"],a:3,e:"□ is unfilled (outline); the other three are solid."},
+  {q:"Which one does NOT belong?",o:["Small ●","Small ▲","Small ■","Large ★"],a:3,e:"Large ★ is the only large shape; the other three are small."},
+  {q:"Which one does NOT belong?",o:["Large ◆","Large ●","Small ▲","Large ■"],a:2,e:"Small ▲ is the only small shape; the other three are large."},
+  {q:"Which one does NOT belong?",o:["Small ★","Small ★","Large ★","Small ★"],a:2,e:"This is the only large star; the other three stars are small — same shape, different size."},
+  {q:"Which one does NOT belong?",o:["●●","▲▲","■■","★"],a:3,e:"★ appears alone; the other three shapes each appear in a pair."},
+  {q:"Which one does NOT belong?",o:["★","★","★★","★"],a:2,e:"★★ is a pair; the other three stars appear alone."},
+  {q:"Which one does NOT belong?",o:["●●●","▲▲▲","■■■","★★"],a:3,e:"★★ has only two; the other three groups have three each."},
+  {q:"Which one does NOT belong?",o:["→","→","↓","→"],a:2,e:"↓ points a different direction; the other three all point right."},
+  {q:"Which one does NOT belong?",o:["↑","↑","↑","↓"],a:3,e:"↓ points a different direction; the other three all point up."},
+  {q:"Which one does NOT belong?",o:["◀","◀","▶","◀"],a:2,e:"▶ points right; the other three point left."},
+  {q:"Which one does NOT belong?",o:["■","■","◆","■"],a:2,e:"◆ is the square rotated 45°; the other three squares sit flat, unrotated."},
+  {q:"Which one does NOT belong?",o:["▲","▲","▲","▶"],a:3,e:"▶ is the triangle rotated 90°; the other three triangles point the same, unrotated way."},
+  {q:"Which one does NOT belong?",o:["●▲","▲●","●▲","▲▲"],a:3,e:"▲▲ breaks the alternating ●▲ / ▲● pattern the other three follow."},
+  {q:"Which one does NOT belong?",o:["★●★","●★●","★●★","★★★"],a:3,e:"★★★ breaks the alternating star/circle pattern the other three follow."},
+  {q:"Which one does NOT belong?",o:["Large filled ●","Large filled ▲","Large filled ■","Small outline ★"],a:3,e:"Small outline ★ differs in two ways at once — size AND fill — while the other three only vary by shape, all large and filled."}
+];
+
 // isShapeOptions(o) — true when a question's options are inline-SVG shapes
 // rather than text. Consumed by the quiz/browse/results renderers to switch
 // option layout to the design's 4-column tile grid.
