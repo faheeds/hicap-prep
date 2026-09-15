@@ -8,6 +8,7 @@ import { JSDOM } from "jsdom";
 
 const APP_PATH = new URL("../src/app.html", import.meta.url);
 const PRIVACY_PATH = new URL("../src/privacy.html", import.meta.url);
+const TERMS_PATH = new URL("../src/terms.html", import.meta.url);
 
 let dom, window, doc;
 
@@ -47,4 +48,21 @@ test("E2-1: app footer links to the privacy policy and includes the trademark di
   assert.match(html, /not affiliated with.*Riverside Insights/i,
     "footer must carry the 'not affiliated' disclaimer");
   assert.match(html, /CogAT/, "disclaimer should name CogAT explicitly");
+});
+
+test("E2-3: src/terms.html exists and covers seasonal pass / refund / no-guarantee-of-outcomes", () => {
+  assert.ok(existsSync(TERMS_PATH), "src/terms.html should exist");
+  const html = readFileSync(TERMS_PATH, "utf-8");
+  // Backlog acceptance: "seasonal pass terms, refund policy, no
+  // guarantee of test outcomes." Fail loudly if any goes missing.
+  assert.match(html, /Family Pass|Individual Pass/, "must describe the pass structure");
+  assert.match(html, /refund/i, "must state a refund policy");
+  assert.match(html, /(no guarantee|does not guarantee)/i, "must disclaim outcome guarantees");
+  assert.match(html, /not affiliated with[\s\S]*?Riverside/i, "must carry the trademark disclaimer");
+});
+
+test("E2-3: app footer also links to Terms of Service", () => {
+  const footer = doc.querySelector("footer.legal");
+  const html = footer.innerHTML;
+  assert.match(html, /href="terms\.html"/i, "footer must link to terms.html");
 });
