@@ -178,6 +178,17 @@ test("removing a student survives a blocked native confirm()", () => {
   assert.ok(!window.APP.students[id], "student should be removed");
 });
 
+test("updateStreak writes streak.lastDate as a YYYY-MM-DD local date (matches Postgres date column)", () => {
+  const anyId = Object.keys(window.APP.students)[0];
+  const st = window.APP.students[anyId];
+  st.streak = { current: 0, longest: 0, lastDate: null };
+  window.updateStreak(st);
+  assert.match(st.streak.lastDate, /^\d{4}-\d{2}-\d{2}$/,
+    "streak.lastDate must be an ISO date so it round-trips through the students.streak_last_date `date` column");
+  const expected = window.localDateISO();
+  assert.equal(st.streak.lastDate, expected, "should record today's LOCAL date, not the UTC one");
+});
+
 test("leaderboard ranks by completion/streak, not raw accuracy", () => {
   // The previous test left S.mode as "parent" — reset it, and select a
   // student via the app's own selectStudent() (window.CUR is only a debug

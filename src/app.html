@@ -307,11 +307,23 @@ function removeStudent(id){
   saveApp();
 }
 
+// YYYY-MM-DD in the student's LOCAL timezone. toISOString() would give a UTC
+// date, which flips over at the wrong moment for late-evening / early-morning
+// practice sessions. This format also matches the Postgres `date` column
+// students.streak_last_date uses, so it round-trips through Supabase without
+// any conversion.
+function localDateISO(d){
+  d = d || new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return yyyy+"-"+mm+"-"+dd;
+}
 function updateStreak(student){
-  const today = new Date().toDateString();
+  const today = localDateISO();
   if(student.streak.lastDate===today) return;
   const y = new Date(); y.setDate(y.getDate()-1);
-  if(student.streak.lastDate===y.toDateString()) student.streak.current++;
+  if(student.streak.lastDate===localDateISO(y)) student.streak.current++;
   else student.streak.current=1;
   student.streak.lastDate=today;
   student.streak.longest=Math.max(student.streak.longest||0, student.streak.current);
