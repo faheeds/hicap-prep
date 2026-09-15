@@ -16,6 +16,31 @@ npm install
 npm test        # runs the full regression suite against src/app.html
 ```
 
+## Backend (Epic 1)
+
+The app starts in **local-only mode** — no accounts, all data in this
+browser's `localStorage`. That's the same behaviour the prototype has always
+had, and it's what the automated test suite runs against.
+
+To point it at a real Supabase project:
+
+1. Create a project at [supabase.com](https://supabase.com) (or run
+   `npx supabase start` to boot a local stack — `supabase/config.toml` in this
+   repo is preconfigured for that).
+2. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` /
+   `SUPABASE_ANON_KEY`.
+3. Apply the SQL migrations under `supabase/migrations/` (either via
+   `npx supabase db push` for a hosted project or `npx supabase db reset` for
+   the local one).
+4. Copy `src/config.example.js` to `src/config.local.js` and paste the same
+   URL + anon key into `window.__HICAP_CONFIG`. `config.local.js` is
+   gitignored, so keys never end up in a commit.
+
+With `config.local.js` present the app will boot into
+Supabase-backed mode (real parent accounts, per-family data, RLS-enforced
+privacy). Without it, everything still works locally — useful for demos and
+CI.
+
 ## Building this with Claude Code, autonomously
 
 This repo ships with `.devcontainer/devcontainer.json` specifically so you can run

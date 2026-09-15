@@ -51,7 +51,7 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 
 | ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes for Claude Code |
 |---|---|---|---|---|---|
-| E1-1 | P0 | ⬜ | Choose & stand up backend | Pick a backend (Supabase is the fastest path: Postgres + Auth + row-level security in one). Project created, connected. | `npx supabase init`; keep it simple, one Postgres project |
+| E1-1 | P0 | 🔶 | Choose & stand up backend | Pick a backend (Supabase is the fastest path: Postgres + Auth + row-level security in one). Project created, connected. | `npx supabase init`; keep it simple, one Postgres project. **Scaffolding in place** (`supabase/config.toml`, `.env.example`, `src/config.example.js`, `config.local.js` gitignored, runtime loader in `src/app.html`); creating the live cloud project is the outside-the-repo step and is deferred until real credentials exist |
 | E1-2 | P0 | ⬜ | Parent account auth | Email/password or magic-link signup & login for the **parent** (not the kid). Session persists across visits. | Supabase Auth; store session token client-side, gate parent-mode routes on it |
 | E1-3 | P0 | ⬜ | Data model migration | Design real tables: `families`, `students` (include a `cogat_level` or `grade` column even though only Level 13 content exists yet — see Epic 5), `attempts` (history rows), `badges_earned`. One family = one parent account = private data. | Replace the single shared JSON blob with normalized tables; get the `grade` column in now so Epic 5 isn't a second migration |
 | E1-4 | P0 | ⬜ | Row-level security | A family can only ever read/write its own rows — enforced at the database level, not just in app logic. | Supabase RLS policies keyed on `auth.uid()` |

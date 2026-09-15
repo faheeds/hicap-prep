@@ -6,3 +6,10 @@ node_modules/
 *.log
 dist/
 .claude/
+
+# Local, per-developer Supabase runtime config — never commit real keys.
+src/config.local.js
+
+# Supabase CLI transient state — the CLI writes these when running locally.
+supabase/.branches/
+supabase/.temp/
