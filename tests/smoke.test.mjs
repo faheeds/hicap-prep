@@ -290,6 +290,30 @@ test("mock test draws 45 questions and is randomized between runs", () => {
   assert.equal(window.S.runner.score.correct, window.S.runner.score.total);
 });
 
+test("timer auto-submit: a timed mock hits results at zero even with no answers picked", async () => {
+  // Closes the last E4-2 gap — the checklist called out timer auto-submit
+  // specifically, but nothing was exercising the setInterval->submitRunner
+  // path. Kicks off a real 1-second timer, waits it out, and asserts the
+  // runner made it to results with a score bound to the runner state.
+  window.S.mode = "parent";
+  window.S.view = "parent-home";
+  window.S.parentUnlocked = true;
+  window.render();
+  window.openMockConfig(2);
+  doc.getElementById("mockMinutes").value = "1"; // 1 minute * 60 -> 60s
+  // Force the runner into a 1-second countdown so the test resolves fast.
+  // Uses the real setInterval path — no timer mocking, no manual step.
+  window.launchMock(2);
+  window.S.runner.remaining = 1;
+  assert.equal(window.S.view, "runner", "should be running the mock");
+  await new Promise((r) => setTimeout(r, 1300));
+  assert.equal(window.S.view, "results", "clock hitting zero should auto-submit");
+  assert.ok(window.S.runner && window.S.runner.score,
+    "results view should carry a scored runner even with no answers picked");
+  assert.equal(window.S.runner.score.total, 45,
+    "unanswered items still count toward the total (they just aren't credited)");
+});
+
 test("removing a student survives a blocked native confirm()", () => {
   const id = addStudent("Temp Student");
   window.S.mode = "parent";
