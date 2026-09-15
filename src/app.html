@@ -614,23 +614,32 @@ function pfBuildTier1(){
     {folds:["h"], d:{x:20,y:20}},
     {folds:["h"], d:{x:35,y:45}},
     {folds:["h"], d:{x:95,y:35}},
-    // Double-fold — vertical + horizontal center (4 dots). Dots off both
-    // axes AND off both diagonals (x+y != 120, x != y), so the "wrong 4-dot
-    // pattern" distractor (v + diagonal) yields 4 distinct dots instead of
-    // collapsing when a mirror lands on the diagonal.
-    {folds:["v","h"], d:{x:85,y:25}},
-    {folds:["v","h"], d:{x:95,y:35}},
-    {folds:["v","h"], d:{x:80,y:35}},
-    {folds:["v","h"], d:{x:75,y:20}},
-    {folds:["v","h"], d:{x:90,y:45}},
-    {folds:["v","h"], d:{x:70,y:30}},
-    // Triple-fold — v + h + main-diagonal (8 dots). Dots off every axis
-    // AND off both diagonals so both the correct 8-dot pattern and the
-    // "wrong 8-dot pattern" (v + h + anti-diagonal) stay at full 8 dots.
-    {folds:["v","h","d"], d:{x:85,y:25}},
-    {folds:["v","h","d"], d:{x:95,y:40}},
-    {folds:["v","h","d"], d:{x:90,y:35}},
-    {folds:["v","h","d"], d:{x:100,y:35}},
+    // Double-fold — vertical + horizontal center (4 dots). Every multi-fold
+    // punch has to clear FOUR conditions to avoid mirror collisions AND
+    // visual overlaps in the distractor patterns:
+    //   * off vertical fold axis     (|x - 60| >= ~10)
+    //   * off horizontal fold axis   (|y - 60| >= ~10)
+    //   * off main diagonal          (|x - y| >= 11 so d-mirror lands clear)
+    //   * far enough from anti-diag  (|x + y - 120| >= 11 so v/d/ad
+    //     compositions don't produce dot pairs at ~14px which is below the
+    //     15-unit visual separation threshold — this is the class of bug
+    //     the pf-geometry test catches)
+    // Every config below was verified programmatically against that rule.
+    {folds:["v","h"], d:{x:85,y:20}},
+    {folds:["v","h"], d:{x:100,y:40}},
+    {folds:["v","h"], d:{x:75,y:25}},
+    {folds:["v","h"], d:{x:20,y:85}},
+    {folds:["v","h"], d:{x:35,y:100}},
+    {folds:["v","h"], d:{x:45,y:95}},
+    // Triple-fold — v + h + main-diagonal (8 dots). Same constraints as
+    // 2-fold PLUS the more crowded 8-dot pattern is more sensitive to
+    // near-collisions (checked against MIN_DIST = 15 in the pf-geometry
+    // test). Punches (100,40) / (95,45) / (35,100) / (20,85) all produce
+    // 8-dot patterns whose minimum pairwise distance is >= 21.2 units.
+    {folds:["v","h","d"], d:{x:100,y:40}},
+    {folds:["v","h","d"], d:{x:95,y:45}},
+    {folds:["v","h","d"], d:{x:35,y:100}},
+    {folds:["v","h","d"], d:{x:20,y:85}},
   ];
   return configs.map((c, idx) => {
     const correct = pfUnfold(c.d, c.folds);

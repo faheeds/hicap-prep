@@ -81,6 +81,48 @@ test("nonverbal PF Tier 1 is a shape bank — real SVG figures on every question
   }
 });
 
+test("PF Tier 1: geometric sanity — every dot inside the canvas with margin, no visual overlaps", () => {
+  // Both prior bugs (single-fold regression, and the three configs whose
+  // mirrors landed on a fold axis) were classes of "geometry produces
+  // something visually wrong that no test catches". This one sweeps every
+  // stem and every option, extracts SVG dot centers, and enforces:
+  //   1. All dot centers stay within [MARGIN, 120 - MARGIN] on both axes.
+  //      Dot radius is 5, so MARGIN = 15 keeps dots at least 5 units clear
+  //      of the square border (10-110 outline).
+  //   2. All pairwise center-to-center distances in the SAME svg are
+  //      >= MIN_DIST, so dots don't run into each other visually.
+  const pool = window.DRILLS.nonverbal[1].PF;
+  const MARGIN = 15;
+  const MIN_DIST = 15; // 15 units = 5px more than the 10-unit "just touching" threshold
+  const parseDots = (svg) => {
+    const out = [];
+    const re = /<circle\s+cx="([^"]+)"\s+cy="([^"]+)"\s+r="([^"]+)"/g;
+    let m; while ((m = re.exec(svg))) out.push({x: +m[1], y: +m[2]});
+    return out;
+  };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const check = (label, svg) => {
+    const dots = parseDots(svg);
+    for (const d of dots) {
+      assert.ok(d.x >= MARGIN && d.x <= 120 - MARGIN,
+        `${label}: dot x=${d.x} is outside the [${MARGIN}, ${120 - MARGIN}] safe canvas`);
+      assert.ok(d.y >= MARGIN && d.y <= 120 - MARGIN,
+        `${label}: dot y=${d.y} is outside the [${MARGIN}, ${120 - MARGIN}] safe canvas`);
+    }
+    for (let i = 0; i < dots.length; i++) {
+      for (let j = i + 1; j < dots.length; j++) {
+        const d = dist(dots[i], dots[j]);
+        assert.ok(d >= MIN_DIST,
+          `${label}: dots too close (${d.toFixed(2)} < ${MIN_DIST}) between ${JSON.stringify(dots[i])} and ${JSON.stringify(dots[j])}`);
+      }
+    }
+  };
+  pool.forEach((q, i) => {
+    check(`q${i+1} stem`, q.q);
+    q.o.forEach((opt, oi) => check(`q${i+1} opt${oi+1}`, opt));
+  });
+});
+
 test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regression from the text pool", () => {
   // Fold count of a stem = number of dashed fold lines in its SVG. The
   // pre-pilot text bank had ~10 single-fold, ~6 double-fold, ~3 triple-fold
