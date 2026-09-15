@@ -91,6 +91,32 @@ test("adding a student creates a roster entry and selects them", () => {
   assert.ok(id, "expected a student id");
   assert.ok(window.APP.students[id], "student not found in APP.students");
   assert.equal(window.APP.students[id].name, "Test Student");
+  // E4-7: grade + cogatLevel land on the record so the roster meta and any
+  // grade-scoped content lookup (Epic 5) have something to key on.
+  assert.equal(window.APP.students[id].grade, 7, "default grade should be 7");
+  assert.equal(window.APP.students[id].cogatLevel, 13, "grade 7 -> Level 13");
+});
+
+test("E4-7: roster row meta line includes the student's grade", () => {
+  // Roster is currently rendered from the add-student add flow above.
+  window.S.mode = "student"; window.S.view = "roster"; window.CUR = null;
+  window.render();
+  const body = doc.getElementById("app").innerHTML;
+  assert.match(body, /Grade 7/, "roster meta line must include a grade label");
+});
+
+test("E4-7: grade picker on add-student writes the picked grade + level to the record", () => {
+  // Simulate a parent typing a name and picking Grade 5 in the segmented control.
+  window.S.mode = "student"; window.S.view = "roster";
+  window.startAddStudent();
+  window.S.newGrade = 5;
+  window.render();
+  doc.getElementById("newName").value = "Fifth Grader";
+  window.submitNewStudent();
+  const st = Object.values(window.APP.students).find((s) => s.name === "Fifth Grader");
+  assert.ok(st, "expected the new student on the roster");
+  assert.equal(st.grade, 5);
+  assert.equal(st.cogatLevel, 11, "grade 5 maps to CogAT level 11");
 });
 
 test("free practice: single subtest draws exactly 10 questions", () => {
