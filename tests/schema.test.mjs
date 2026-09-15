@@ -1,0 +1,58 @@
+// Sanity-check the E1-3 initial schema. We can't run Postgres in unit tests
+// without a Docker image handy, but the migration file is a source-of-truth
+// artifact and small enough that shape checks are worthwhile — this catches
+// accidental drops of required tables/columns during future edits.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+
+const MIGRATIONS_DIR = new URL("../supabase/migrations/", import.meta.url);
+
+function readAllMigrations() {
+  const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();
+  return files.map((f) => readFileSync(new URL(f, MIGRATIONS_DIR), "utf-8")).join("\n\n");
+}
+
+test("initial schema defines all required tables", () => {
+  const sql = readAllMigrations();
+  for (const tbl of ["families", "students", "attempts", "badges_earned"]) {
+    assert.match(sql, new RegExp(`create table public\\.${tbl}`, "i"), `expected create table for ${tbl}`);
+  }
+});
+
+test("students table carries cogat_level and grade columns (Epic 5 forward compat)", () => {
+  const sql = readAllMigrations();
+  assert.match(sql, /cogat_level\s+smallint/i);
+  assert.match(sql, /grade\s+smallint/i);
+  // Level range must cover 8 (grade 1) and 9..17 (grades 3..11) per Epic 5 preamble.
+  assert.match(sql, /cogat_level between 8 and 17/i);
+  // Grade constraint must allow 1 (Epic 9) OR 3..11 (Epic 5) but never 2/K.
+  assert.match(sql, /grade\s*=\s*1\s+or\s+grade\s+between\s+3\s+and\s+11/i);
+});
+
+test("families table stores a PIN hash, not a plaintext PIN", () => {
+  const sql = readAllMigrations();
+  assert.match(sql, /parent_pin_hash\s+text/i, "PIN column must be a hash");
+  assert.doesNotMatch(sql, /parent_pin\s+text/i, "no plaintext parent_pin column allowed");
+});
+
+test("rate-limit columns exist on families for E1-6 to enforce", () => {
+  const sql = readAllMigrations();
+  assert.match(sql, /pin_failed_attempts\s+integer/i);
+  assert.match(sql, /pin_locked_until\s+timestamptz/i);
+});
+
+test("row-level security is enabled on every user-data table", () => {
+  const sql = readAllMigrations();
+  for (const tbl of ["families", "students", "attempts", "badges_earned"]) {
+    assert.match(sql, new RegExp(`alter table public\\.${tbl}\\s+enable row level security`, "i"),
+      `RLS must be enabled on ${tbl}`);
+  }
+});
+
+test("a new auth user gets a families row via trigger", () => {
+  const sql = readAllMigrations();
+  assert.match(sql, /create trigger on_auth_user_created/i);
+  assert.match(sql, /handle_new_user/i);
+});

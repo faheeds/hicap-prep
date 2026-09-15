@@ -216,21 +216,23 @@ const hasCloud = (typeof window!=="undefined" && typeof window.storage!=="undefi
 
 function defaultApp(){ return {pin:"1234", students:{}}; }
 
+const hasLocal = (typeof localStorage!=="undefined");
 async function loadApp(){
   try{
     if(hasCloud){
       const res = await window.storage.get(STORAGE_KEY, true);
       return res && res.value ? JSON.parse(res.value) : defaultApp();
-    } else {
+    } else if(hasLocal){
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : defaultApp();
     }
-  }catch(e){ return defaultApp(); }
+  }catch(e){ /* fall through */ }
+  return defaultApp();
 }
 function saveApp(){
   try{
     if(hasCloud){ window.storage.set(STORAGE_KEY, JSON.stringify(APP), true); }
-    else{ localStorage.setItem(STORAGE_KEY, JSON.stringify(APP)); }
+    else if(hasLocal){ localStorage.setItem(STORAGE_KEY, JSON.stringify(APP)); }
   }catch(e){ console.error("save failed", e); }
 }
 
