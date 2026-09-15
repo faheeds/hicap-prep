@@ -81,6 +81,38 @@ test("nonverbal PF Tier 1 is a shape bank — real SVG figures on every question
   }
 });
 
+test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regression from the text pool", () => {
+  // Fold count of a stem = number of dashed fold lines in its SVG. The
+  // pre-pilot text bank had ~10 single-fold, ~6 double-fold, ~3 triple-fold
+  // (see the pool this replaced). The first pilot cut only shipped
+  // single-fold, which trivialized Tier 1. This assertion locks the range.
+  const pool = window.DRILLS.nonverbal[1].PF;
+  const foldCounts = pool.map(q => (q.q.match(/stroke-dasharray/g) || []).length);
+  const singles = foldCounts.filter(n => n === 1).length;
+  const doubles = foldCounts.filter(n => n === 2).length;
+  const triples = foldCounts.filter(n => n === 3).length;
+  assert.ok(singles >= 6,  `expected 6+ single-fold items, got ${singles}`);
+  assert.ok(doubles >= 4,  `expected 4+ double-fold items, got ${doubles}`);
+  assert.ok(triples >= 3,  `expected 3+ triple-fold items, got ${triples}`);
+  assert.equal(singles + doubles + triples, pool.length, "every stem must have 1-3 fold lines");
+
+  // Dot count on each option's SVG. For each fold count in the pool, the
+  // correct answer should carry the expected hole count (1 fold -> 2 dots,
+  // 2 folds -> 4 dots, 3 folds -> 8 dots). And at every fold count, at
+  // least one WRONG option should carry the same count as the correct one
+  // so the puzzle can't be solved by counting alone.
+  const dotsIn = (svg) => (svg.match(/<circle\b/g) || []).length;
+  pool.forEach((q, i) => {
+    const n = foldCounts[i];
+    const expected = n === 1 ? 2 : n === 2 ? 4 : 8;
+    assert.equal(dotsIn(q.o[q.a]), expected,
+      `q${i+1} (${n}-fold) — correct answer should have ${expected} dots, got ${dotsIn(q.o[q.a])}`);
+    const wrongSameCount = q.o.filter((opt, oi) => oi !== q.a && dotsIn(opt) === expected).length;
+    assert.ok(wrongSameCount >= 1,
+      `q${i+1} (${n}-fold) — at least one wrong option must match the correct dot count, else the puzzle is solvable by counting alone`);
+  });
+});
+
 test("question bank: every item has structurally valid answer data", () => {
   for (const battery of Object.keys(window.DRILLS)) {
     for (const tier of Object.keys(window.DRILLS[battery])) {

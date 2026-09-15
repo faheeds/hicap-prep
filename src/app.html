@@ -542,21 +542,36 @@ const SUB_TO_BATTERY={SC:"verbal",VC:"verbal",VA:"verbal",NS:"quant",NP:"quant",
 const PF_INK = "#1d1b2e";
 const PF_DOT = "#f2621f";
 function pfSvgSquare(){ return `<rect x="10" y="10" width="100" height="100" fill="none" stroke="${PF_INK}" stroke-width="2"/>`; }
+// One fold-line SVG element per fold. Fold types:
+//   v  — vertical center fold, mirror axis x=60
+//   h  — horizontal center fold, mirror axis y=60
+//   d  — diagonal fold top-left to bottom-right, mirror axis y=x
+//   ad — anti-diagonal, mirror axis y=120-x (used for distractors only —
+//        no puzzle uses ad as an intended fold, since one goal is a plausible
+//        "wrong fold" mistake at Tier 3-fold difficulty).
 function pfSvgFoldLine(fold){
-  if(fold === "v") return `<line x1="60" y1="10" x2="60" y2="110" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
-  if(fold === "h") return `<line x1="10" y1="60" x2="110" y2="60" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(fold === "v")  return `<line x1="60" y1="10" x2="60" y2="110" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(fold === "h")  return `<line x1="10" y1="60" x2="110" y2="60" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(fold === "d")  return `<line x1="10" y1="10" x2="110" y2="110" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(fold === "ad") return `<line x1="10" y1="110" x2="110" y2="10" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
   return "";
 }
+function pfSvgFoldLines(folds){ return folds.map(pfSvgFoldLine).join(""); }
 function pfSvgDot(pt){ return `<circle cx="${pt.x}" cy="${pt.y}" r="5" fill="${PF_DOT}"/>`; }
-function pfStemSVG(fold, dot){
-  return `<svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Folded square with one hole punched">${pfSvgSquare()}${pfSvgFoldLine(fold)}${pfSvgDot(dot)}</svg>`;
+function pfStemSVG(folds, dot){
+  const label = folds.length === 1 ? "Square folded once with one hole punched"
+              : folds.length === 2 ? "Square folded twice with one hole punched"
+              : "Square folded three times with one hole punched";
+  return `<svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="${label}">${pfSvgSquare()}${pfSvgFoldLines(folds)}${pfSvgDot(dot)}</svg>`;
 }
 function pfOptionSVG(dots){
   return `<svg viewBox="0 0 120 120" width="80" height="80" role="img" aria-label="Unfolded square with ${dots.length} hole${dots.length===1?"":"s"}">${pfSvgSquare()}${dots.map(pfSvgDot).join("")}</svg>`;
 }
 function pfMirror(pt, fold){
-  if(fold === "v") return {x: 120 - pt.x, y: pt.y};
-  if(fold === "h") return {x: pt.x, y: 120 - pt.y};
+  if(fold === "v")  return {x: 120 - pt.x, y: pt.y};
+  if(fold === "h")  return {x: pt.x, y: 120 - pt.y};
+  if(fold === "d")  return {x: pt.y, y: pt.x};              // reflect across y=x
+  if(fold === "ad") return {x: 120 - pt.y, y: 120 - pt.x};  // reflect across y=120-x
   return pt;
 }
 function pfDedupe(pts){
@@ -564,46 +579,100 @@ function pfDedupe(pts){
   for(const p of pts){ const k = p.x+","+p.y; if(!seen.has(k)){ seen.add(k); out.push(p); } }
   return out;
 }
+// Unfold: apply each fold's mirror to the growing dot set. Every fold at
+// most doubles the count; dedupe protects against the corner case where a
+// dot happens to sit on the fold axis. Physical fold sequence doesn't
+// change the final set for orthogonal reflections at the center.
+function pfUnfold(dot, folds){
+  let pts = [dot];
+  for(const f of folds){
+    pts = pfDedupe(pts.concat(pts.map(p => pfMirror(p, f))));
+  }
+  return pts;
+}
 function pfBuildTier1(){
-  // Twenty configs — pure center folds (vertical + horizontal), varying the
-  // punch position so distractors stay plausible. Off-center folds and
-  // multi-fold items are Tier 2/3 material.
+  // 20 items covering the same fold-count range as the pre-pilot text bank
+  // (which had ~10 single-fold, ~6 double-fold, ~3 triple-fold, 1 quadruple):
+  //   * 10 single-fold (5 vertical center, 5 horizontal center)
+  //   *  6 double-fold (perpendicular v + h center folds)
+  //   *  4 triple-fold (v + h + diagonal — three mirror axes, 8-hole result)
+  // Dots deliberately kept OFF every fold axis so multi-fold puzzles
+  // actually produce the full 4- or 8-dot patterns (a dot on an axis
+  // wouldn't multiply across that fold and would trivialize the item).
   const configs = [
-    {f:"v", d:{x:85,y:25}}, {f:"v", d:{x:95,y:60}}, {f:"v", d:{x:85,y:95}},
-    {f:"v", d:{x:78,y:22}}, {f:"v", d:{x:95,y:40}}, {f:"v", d:{x:85,y:80}},
-    {f:"v", d:{x:100,y:100}}, {f:"v", d:{x:90,y:35}}, {f:"v", d:{x:75,y:30}},
-    {f:"v", d:{x:100,y:60}},
-    {f:"h", d:{x:25,y:30}}, {f:"h", d:{x:60,y:25}}, {f:"h", d:{x:90,y:25}},
-    {f:"h", d:{x:20,y:20}}, {f:"h", d:{x:30,y:45}}, {f:"h", d:{x:60,y:45}},
-    {f:"h", d:{x:95,y:30}}, {f:"h", d:{x:100,y:20}}, {f:"h", d:{x:55,y:30}},
-    {f:"h", d:{x:35,y:25}},
+    // Single-fold — vertical center. Dots kept off y=60 (h axis) so the
+    // "wrong axis" distractor produces a distinct 2-dot pattern rather than
+    // collapsing to a single dot.
+    {folds:["v"], d:{x:85,y:25}},
+    {folds:["v"], d:{x:95,y:50}},
+    {folds:["v"], d:{x:85,y:95}},
+    {folds:["v"], d:{x:100,y:100}},
+    {folds:["v"], d:{x:75,y:35}},
+    // Single-fold — horizontal center. Same off-axis rule (x != 60).
+    {folds:["h"], d:{x:25,y:30}},
+    {folds:["h"], d:{x:90,y:25}},
+    {folds:["h"], d:{x:20,y:20}},
+    {folds:["h"], d:{x:35,y:45}},
+    {folds:["h"], d:{x:95,y:35}},
+    // Double-fold — vertical + horizontal center (4 dots). Dots off both
+    // axes AND off both diagonals (x+y != 120, x != y), so the "wrong 4-dot
+    // pattern" distractor (v + diagonal) yields 4 distinct dots instead of
+    // collapsing when a mirror lands on the diagonal.
+    {folds:["v","h"], d:{x:85,y:25}},
+    {folds:["v","h"], d:{x:95,y:35}},
+    {folds:["v","h"], d:{x:80,y:35}},
+    {folds:["v","h"], d:{x:75,y:20}},
+    {folds:["v","h"], d:{x:90,y:45}},
+    {folds:["v","h"], d:{x:70,y:30}},
+    // Triple-fold — v + h + main-diagonal (8 dots). Dots off every axis
+    // AND off both diagonals so both the correct 8-dot pattern and the
+    // "wrong 8-dot pattern" (v + h + anti-diagonal) stay at full 8 dots.
+    {folds:["v","h","d"], d:{x:85,y:25}},
+    {folds:["v","h","d"], d:{x:95,y:40}},
+    {folds:["v","h","d"], d:{x:90,y:35}},
+    {folds:["v","h","d"], d:{x:100,y:35}},
   ];
   return configs.map((c, idx) => {
-    const correct = pfDedupe([c.d, pfMirror(c.d, c.f)]);
-    // Distractor 1: only the visible punch — student forgot the paper unfolds.
-    const dis1 = [c.d];
-    // Distractor 2: mirror across the WRONG axis — used the other fold
-    // direction. This is the most common student mistake, per real
-    // Level-13 experience.
-    const wrongFold = c.f === "v" ? "h" : "v";
-    const dis2 = pfDedupe([c.d, pfMirror(c.d, wrongFold)]);
-    // Distractor 3: 180-degree rotation from the punch — "diagonal" wrong
-    // that plausibly comes from mirroring on both axes.
-    const dis3 = pfDedupe([c.d, {x: 120 - c.d.x, y: 120 - c.d.y}]);
+    const correct = pfUnfold(c.d, c.folds);
+    const n = c.folds.length;
 
-    // Rotate so correct-answer index cycles evenly across 0..3.
+    // Distractors sized so a student can't solve by counting dots alone —
+    // at every difficulty level, at least one wrong option carries the
+    // same dot count as the correct answer.
+    let dis1, dis2, dis3;
+    if(n === 1){
+      const primary = c.folds[0];
+      const wrong = primary === "v" ? "h" : "v";
+      dis1 = [c.d];                            // 1 dot — didn't unfold
+      dis2 = pfUnfold(c.d, [wrong]);           // 2 dots — used wrong fold direction (SAME count as correct)
+      dis3 = pfUnfold(c.d, ["v","h"]);         // 4 dots — over-unfolded
+    } else if(n === 2){
+      dis1 = [c.d];                            // 1 dot — didn't unfold
+      dis2 = pfUnfold(c.d, ["v"]);             // 2 dots — unfolded only one fold
+      dis3 = pfUnfold(c.d, ["v","d"]);         // 4 dots WRONG pattern — used a diagonal instead of horizontal for the second fold (SAME count as correct)
+    } else {  // n === 3
+      dis1 = pfUnfold(c.d, ["v"]);             // 2 dots — unfolded only one
+      dis2 = pfUnfold(c.d, ["v","h"]);         // 4 dots — missed the diagonal fold
+      dis3 = pfUnfold(c.d, ["v","h","ad"]);    // 8 dots WRONG pattern — used anti-diagonal instead (SAME count as correct)
+    }
+
     const raw = [dis1, correct, dis2, dis3];
     const rot = idx % 4;
     const rotated = raw.slice(rot).concat(raw.slice(0, rot));
     const correctPosition = (1 - rot + 4) % 4;
 
-    const foldName = c.f === "v" ? "vertical" : "horizontal";
-    const mirrorAxis = c.f === "v" ? "left-right" : "top-and-bottom";
+    const foldWords = n === 1 ? (c.folds[0] === "v" ? "once with a vertical crease" : "once with a horizontal crease")
+                    : n === 2 ? "twice — vertically first, then horizontally"
+                    :           "three times — vertically, horizontally, then along the diagonal";
+    const holes = correct.length;
+    const eDetail = n === 1 ? "one fold puts two layers on top of each other, so one punch produces two holes: the original and its mirror across the fold."
+                  : n === 2 ? "two perpendicular folds stack four layers, so one punch produces four holes — one in each quadrant, mirrored across both fold lines."
+                  :           "three folds stack eight layers, so one punch produces eight holes — mirrored across all three fold lines.";
     return {
-      q: `<div class="pf-stem">${pfStemSVG(c.f, c.d)}</div><p class="qtext">The square is folded once along the dashed ${foldName} line, and a hole is punched through both layers. Which square shows what the paper looks like when unfolded?</p>`,
+      q: `<div class="pf-stem">${pfStemSVG(c.folds, c.d)}</div><p class="qtext">The square is folded ${foldWords}, and a hole is punched through every layer. Which square shows the paper when it is unfolded?</p>`,
       o: rotated.map(pfOptionSVG),
       a: correctPosition,
-      e: `A single ${foldName} fold puts the two halves on top of each other, so one punch makes two holes when the paper is unfolded: one at the original spot and one at its mirror across the fold line. The mirror runs ${mirrorAxis}.`
+      e: `${holes} holes when unfolded — ${eDetail}`
     };
   });
 }
