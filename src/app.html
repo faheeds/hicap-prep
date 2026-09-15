@@ -892,6 +892,7 @@ function modalSubmitPrompt(){
 }
 function modalHTML(){
   if(!MODAL) return "";
+  if(MODAL.mode==="paywall") return paywallModalHTML();
   // role=dialog + aria-modal so AT treats the overlay as a modal dialog;
   // aria-labelledby points at the message text so the dialog announces
   // itself when it opens.
@@ -1596,7 +1597,14 @@ function dashboardHTML(){
     </div>`;
   }
 
+  const freeBanner = !isEntitled(CUR) ? `<div class="panel" style="border-color:var(--flare-300);background:var(--flare-100);">
+    <div class="subhead" style="color:var(--flare-800);">Free tier — 1 practice subtest/day</div>
+    <div class="note">Browse and one practice subtest per day are always free. Unlock the full 10-week program, mock tests, and unlimited practice with a pass.</div>
+    <button class="btn btn-primary" onclick="S.mode='student';S.parentUnlocked=false;showPaywall('program');">See passes</button>
+  </div>` : ``;
+
   return `<div class="stack-6">
+    ${freeBanner}
     ${identity}
     ${streakPanel}
     ${strandsBlock}
@@ -1719,6 +1727,7 @@ function toggleAllWeeks(){
 }
 
 function launchProgramDay(weekNum, day){
+  if(!isEntitled(CUR)){ showPaywall("program"); return; }
   const st=currentStudent();
   const plan=weekPlan(weekNum, st);
   const d=plan[day];
@@ -1824,6 +1833,7 @@ function subtestPickHTML(){
   </div>`;
 }
 function launchPracticeOne(){
+  if(!isEntitled(CUR) && freePracticeCountToday(CUR)>=1){ showPaywall("practice"); return; }
   const qs = collectQuestions(S.b, S.t, S.sub, PRACTICE_PER_SUB);
   const label = S.sub==="ALL" ? "All subtests" : SLABEL[S.sub];
   startRunner(BLABEL[S.b]+" · Tier "+S.t+" · "+label, qs, {});
@@ -2196,6 +2206,88 @@ function leaderboardHTML(){
   return html;
 }
 
+/* =========================================================
+   ENTITLEMENT GATING (Epic 3, E3-4)
+   ========================================================= */
+
+// True when the student has an active paid pass. Checked before launching
+// any gated feature (program lessons, mocks, >1 practice/day).
+function isEntitled(studentId){
+  const passType = APP.passType || "free";
+  if(passType==="free") return false;
+  if(APP.passExpiresAt && new Date(APP.passExpiresAt)<new Date()) return false;
+  // Individual pass: only the student named on the pass is entitled.
+  if(passType==="individual") return APP.passStudentId===studentId;
+  // Family and family_annual: all students on the roster.
+  return true;
+}
+
+// Count today's free-practice sessions for a student (kind="practice", local date).
+function freePracticeCountToday(studentId){
+  const st=APP.students[studentId]; if(!st) return 0;
+  const today=localDateISO();
+  return (st.history||[]).filter(h=>{
+    if(h.kind!=="practice"||!h.date) return false;
+    const d=new Date(h.date);
+    const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    return ds===today;
+  }).length;
+}
+
+// Show a paywall modal so the parent can choose a pass to buy.
+// context: 'program' | 'mock' | 'practice' — used only for the headline copy.
+function showPaywall(context){
+  MODAL={mode:"paywall", context:context||"program"}; render();
+}
+async function startCheckout(priceType, studentId){
+  if(!CLOUD||!AUTH){ showAlert("Create an account first, then purchase a pass."); return; }
+  const session=AUTH.currentSession();
+  if(!session){ showAlert("Sign in first, then purchase a pass."); return; }
+  const cfg=window.__hicap&&window.__hicap.config; if(!cfg) return;
+  const fnUrl=`${cfg.supabaseUrl.replace(/\/$/,"")}/functions/v1/create-checkout`;
+  const baseUrl=typeof location!=="undefined"?location.href.split("?")[0]:"";
+  MODAL={mode:"paywall",context:"loading"}; render();
+  try{
+    const res=await fetch(fnUrl,{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+session.access_token,"apikey":cfg.supabaseAnonKey,"Content-Type":"application/json"},
+      body:JSON.stringify({priceType, studentId:studentId||null,
+        successUrl:baseUrl+"?stripe_success=1", cancelUrl:baseUrl})
+    });
+    const data=await res.json();
+    if(data.url){ window.location.href=data.url; }
+    else{ MODAL=null; showAlert("Could not start checkout: "+(data.error||"unknown error")); }
+  }catch(e){ MODAL=null; showAlert("Could not reach the server."); }
+}
+function paywallModalHTML(){
+  const ctx=MODAL.context;
+  if(ctx==="loading") return `<div class="modal-overlay"><div class="modal-box" role="dialog" aria-modal="true">
+    <p>Redirecting to checkout…</p></div></div>`;
+
+  const headline = ctx==="mock"      ? "Mock tests are available on a paid pass."
+                 : ctx==="practice"  ? "You've used today's free practice slot."
+                 :                     "The full 10-week route is available on a paid pass.";
+  const hint = "Browse mode and one practice subtest per day are always free.";
+  const studentList = Object.values(APP.students);
+  const indButtons = studentList.map(st=>
+    `<button class="btn btn-primary" onclick="startCheckout('individual','${st.id}')">
+      Individual Pass for ${st.name.split(/\s+/)[0]} — $49</button>`
+  ).join("");
+  return `<div class="modal-overlay"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="paywallMsg">
+    <p id="paywallMsg" style="font-family:var(--font-heading);font-size:17px;font-weight:600;">${headline}</p>
+    <p class="note">${hint}</p>
+    <div class="stack-3">
+      <div class="caption">Choose a pass</div>
+      ${indButtons}
+      <button class="btn btn-primary" onclick="startCheckout('family',null)">Family Pass — all students — $79</button>
+      <button class="btn btn-primary" onclick="startCheckout('annual',null)">Annual Family Pass — $129/year, cancel anytime</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Not now</button>
+    </div>
+  </div></div>`;
+}
+
 /* ---------- EMAIL REMINDER OPT-IN (Epic 4, E4-4) ---------- */
 function emailReminderToggleHTML(){
   const optedIn = !!(APP.emailRemindersOptedIn);
@@ -2324,6 +2416,46 @@ function parentLock(){
   S.mode="student"; S.parentUnlocked=false; S.view = CUR ? "dashboard" : "roster";
   render();
 }
+function parentPlanHTML(){
+  const passType = APP.passType || "free";
+  const expiry = APP.passExpiresAt ? new Date(APP.passExpiresAt).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"}) : null;
+  if(passType==="free"){
+    return `<div class="stack-3">
+      <div class="caption">Subscription</div>
+      <div class="note">No active pass. Free tier: browse mode + 1 practice subtest/day per student.</div>
+      <div class="row-actions">
+        <button class="btn btn-primary" onclick="showPaywall('program')">Get full access</button>
+      </div>
+    </div>`;
+  }
+  const passLabel = passType==="individual" ? "Individual Pass"
+                  : passType==="family"     ? "Family Pass"
+                  :                           "Annual Family Pass";
+  const statusLine = expiry ? `Active until ${expiry}` : "Active";
+  const isSubscription = passType==="family_annual";
+  return `<div class="stack-3">
+    <div class="caption">Subscription</div>
+    <div class="note"><strong>${passLabel}</strong> · ${statusLine}</div>
+    ${isSubscription && CLOUD ? `<div class="row-actions"><button class="btn btn-secondary" onclick="openBillingPortal()">Manage subscription</button></div>` : ``}
+  </div>`;
+}
+async function openBillingPortal(){
+  if(!CLOUD||!AUTH){ return; }
+  const session=AUTH.currentSession(); if(!session) return;
+  const cfg=window.__hicap&&window.__hicap.config; if(!cfg) return;
+  const fnUrl=`${cfg.supabaseUrl.replace(/\/$/,"")}/functions/v1/create-portal-session`;
+  try{
+    const res=await fetch(fnUrl,{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+session.access_token,"apikey":cfg.supabaseAnonKey,"Content-Type":"application/json"},
+      body:JSON.stringify({returnUrl:typeof location!=="undefined"?location.href:""})
+    });
+    const data=await res.json();
+    if(data.url) window.location.href=data.url;
+    else showAlert("Could not open billing portal: "+(data.error||"unknown error"));
+  }catch(e){ showAlert("Could not reach the server."); }
+}
+
 function parentHomeHTML(){
   const list = Object.values(APP.students);
   const mockLaunchers = MOCK_DEFS.map(m=>{
@@ -2384,6 +2516,7 @@ function parentHomeHTML(){
         <button class="btn btn-secondary" onclick="exportAsCSV()">Download CSV</button>
       </div>
     </div>
+    ${parentPlanHTML()}
     <div class="stack-3">
       <div class="caption">Delete family data</div>
       <div class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</div>
@@ -2555,6 +2688,10 @@ function parentAddStudent(){
   addStudent(name, S.newAvatar, S.newGrade); render();
 }
 function openMockConfig(id){
+  // Gate on whichever student is currently selected in the parent roster.
+  // If the family has no paid pass for any student, show the paywall.
+  const anyEntitled = Object.keys(APP.students).some(sid=>isEntitled(sid));
+  if(!anyEntitled){ S.mode="student"; S.view="parent-home"; render(); showPaywall("mock"); return; }
   S.mockConfigId=id;
   S.mockStudentId = Object.keys(APP.students)[0] || null;
   S.view="mock-config";
@@ -2760,6 +2897,17 @@ function printProgressReport(studentId){
     });
   }
   APP = await loadApp();
+
+  // If we're returning from a successful Stripe Checkout, reload from the DB
+  // (the webhook may have already updated the entitlement) and show a receipt.
+  if(typeof location!=="undefined" && location.search.includes("stripe_success=1")){
+    if(typeof history!=="undefined") history.replaceState({}, "", location.pathname);
+    if(CLOUD && STORE){
+      try{ APP = await STORE.load(); }catch(e){ /* proceed with loaded state */ }
+    }
+    showAlert("Payment successful — your pass is now active. Thank you!");
+  }
+
   render();
 })();
 

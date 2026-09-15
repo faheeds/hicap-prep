@@ -163,7 +163,7 @@
 
     const { data: fam, error: famErr } = await supabase
       .from("families")
-      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in")
+      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in, pass_type, pass_expires_at, pass_student_id, stripe_customer_id, stripe_subscription_id")
       .eq("owner_id", userId)
       .maybeSingle();
     if (famErr) { console.error("families load failed", famErr); return defaultApp(); }
@@ -197,6 +197,11 @@
       _familyId: fam.id,
       consentedAt: fam.consented_at || null,
       emailRemindersOptedIn: fam.email_reminders_opted_in || false,
+      passType: fam.pass_type || "free",
+      passExpiresAt: fam.pass_expires_at || null,
+      passStudentId: fam.pass_student_id || null,
+      stripeCustomerId: fam.stripe_customer_id || null,
+      stripeSubscriptionId: fam.stripe_subscription_id || null,
       students: studentsById,
     };
   }

@@ -33,6 +33,9 @@ async function boot() {
   window.prompt = () => { throw new Error("native prompt blocked"); };
   await new Promise((r) => setTimeout(r, 300)); // let async init() finish
   doc = window.document;
+  // Pre-grant a family pass so entitlement gates don't block quiz-mechanics tests.
+  // Entitlement gating has its own test in tests/payments.test.mjs.
+  window.APP.passType = "family";
 }
 
 function addStudent(name) {
