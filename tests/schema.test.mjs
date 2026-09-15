@@ -80,6 +80,26 @@ test("retention: 18-month deletion window is composed of a 17-month warn + 60-da
   assert.match(sql, /cron\.schedule\(\s*'hicap-retention-clear'/i, "clear-warning job must be scheduled");
 });
 
+test("retention: automation is gated on the app_settings feature flag, disabled by default", () => {
+  const sql = readAllMigrations();
+  // Singleton settings table with the constraint that forces exactly one row.
+  assert.match(sql, /create table if not exists public\.app_settings/i, "app_settings singleton table must exist");
+  assert.match(sql, /constraint app_settings_singleton check \(id = true\)/i, "singleton must be enforced by a CHECK on id");
+  assert.match(sql, /retention_automation_enabled\s+boolean not null default false/i, "flag must default to disabled");
+
+  // Every retention function short-circuits when the flag is off, with a
+  // NOTICE so cron.job_run_details records that it ran (not that it was
+  // silently skipped).
+  for (const fn of ["retention_mark_warnings", "retention_delete_expired", "retention_clear_stale_warnings"]) {
+    const re = new RegExp(`function public\\.${fn}[\\s\\S]*?retention_automation_enabled\\(\\)[\\s\\S]*?raise notice 'retention automation disabled`, "i");
+    assert.match(sql, re, `${fn} must early-exit + raise notice when the flag is off`);
+  }
+
+  // Cron schedules from the previous migration must remain untouched —
+  // no `cron.unschedule` calls, and the three job names still appear.
+  assert.doesNotMatch(sql, /cron\.unschedule/i, "cron.schedule entries should be left intact — no unschedule");
+});
+
 test("students/attempts/badges policies scope to caller's own family_id, not any family", () => {
   const sql = readAllMigrations();
   // A policy that forgets the family-owner subselect would let a signed-in

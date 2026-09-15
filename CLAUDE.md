@@ -76,6 +76,11 @@ need reshaping once the `level` key exists.
   (deleting a database, rotating a production credential, force-pushing over
   shared history), stop and flag it instead of proceeding — that's the one
   category worth breaking the "don't ask" rule for.
+- Before creating a new Supabase migration, always list the actual filenames
+  under `supabase/migrations/` (or run `supabase migration list`) and pick a
+  version strictly greater than the highest present. Do not guess the next
+  number from the pattern of a few recent files — collisions have happened
+  twice this way.
 
 ## Tech choices already made (don't relitigate without a reason)
 
