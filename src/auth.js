@@ -80,9 +80,48 @@
   function isReady() { return state.ready; }
   function onChange(fn) { state.listeners.add(fn); return () => state.listeners.delete(fn); }
 
+  // -------------------------------------------------------------------------
+  // Parent-PIN service (Epic 1, E1-6).
+  //
+  // Delegates PIN verification and change to the verify-pin / set-pin edge
+  // functions so no client code ever touches the hash. Rate limiting lives
+  // on the server; the response tells us how many attempts are left and
+  // when the lockout expires so the UI can render an accurate error.
+  // -------------------------------------------------------------------------
+  async function callEdge(name, body) {
+    if (!isCloud) throw new Error("Supabase not configured");
+    const cfg = hicap.config;
+    const url = `${cfg.supabaseUrl.replace(/\/$/, "")}/functions/v1/${name}`;
+    const token = state.session ? state.session.access_token : null;
+    if (!token) throw new Error("not signed in");
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": cfg.supabaseAnonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body || {}),
+    });
+    let json = null;
+    try { json = await res.json(); } catch { /* empty body */ }
+    return { status: res.status, body: json };
+  }
+
+  async function verifyPin(pin) {
+    const r = await callEdge("verify-pin", { pin });
+    return { ok: !!(r.body && r.body.ok), status: r.status, ...(r.body || {}) };
+  }
+
+  async function setPin(pin, currentPin) {
+    const r = await callEdge("set-pin", currentPin ? { pin, currentPin } : { pin });
+    return { ok: !!(r.body && r.body.ok), status: r.status, ...(r.body || {}) };
+  }
+
   hicap.auth = {
     init, signUp, signIn, sendMagicLink, signOut,
     currentSession, currentUser, isAuthenticated, needsAuthGate,
     isReady, onChange,
+    verifyPin, setPin,
   };
 })();

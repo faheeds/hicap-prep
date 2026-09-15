@@ -948,16 +948,43 @@ function leaderboardHTML(){
 
 /* ---------- PARENT AREA ---------- */
 function parentGateHTML(){
+  const setupHint = (CLOUD && APP.pin==="1234") ? "First time? Any 4 digits will set the PIN." : "";
   return `<div class="pingate"><h2>Parent access</h2>
-    <p class="note">Enter the 4-digit parent PIN to manage students and run mock tests. Default is 1234.</p>
+    <p class="note">Enter the 4-digit parent PIN to manage students and run mock tests. Default is 1234.${setupHint?" "+setupHint:""}</p>
     <input id="pinInput" maxlength="4" inputmode="numeric" placeholder="••••">
-    <div id="pinErr" class="warn" style="display:none;">Incorrect PIN.</div>
+    <div id="pinErr" class="warn" style="display:none;"></div>
     <button class="btn forest" onclick="tryPin()">Unlock</button></div>`;
 }
-function tryPin(){
+async function tryPin(){
   const v=document.getElementById("pinInput").value.trim();
+  const errEl=document.getElementById("pinErr");
+  function showErr(msg){ errEl.textContent=msg; errEl.style.display="block"; }
+  if(!/^\d{4}$/.test(v)){ showErr("Enter a 4-digit PIN."); return; }
+
+  // Cloud mode: server verifies the hash + enforces rate limiting.
+  if(CLOUD && AUTH && AUTH.verifyPin){
+    try{
+      const r = await AUTH.verifyPin(v);
+      if(r.ok){ S.parentUnlocked=true; S.view="parent-home"; render(); return; }
+      if(r.reason==="no_pin_set"){
+        // First-time setup — treat this PIN entry as the new PIN, save it, unlock.
+        const s = await AUTH.setPin(v);
+        if(s.ok){ S.parentUnlocked=true; S.view="parent-home"; render(); return; }
+        showErr(s.error || "Could not set PIN."); return;
+      }
+      if(r.reason==="locked"){
+        const until = r.lockedUntil ? new Date(r.lockedUntil).toLocaleTimeString() : "soon";
+        showErr(`Too many wrong PINs. Try again after ${until}.`); return;
+      }
+      const left = typeof r.attemptsLeft==="number" ? ` (${r.attemptsLeft} left)` : "";
+      showErr(`Incorrect PIN${left}.`);
+    }catch(e){ showErr("Could not reach the server."); }
+    return;
+  }
+
+  // Local mode fallback (unchanged pre-Epic-1 behaviour).
   if(v===APP.pin){ S.parentUnlocked=true; S.view="parent-home"; render(); }
-  else document.getElementById("pinErr").style.display="block";
+  else showErr("Incorrect PIN.");
 }
 function parentHomeHTML(){
   let html = `<div class="crumb">Parent area (unlocked)</div>
@@ -993,10 +1020,28 @@ function parentHomeHTML(){
   return html;
 }
 function changePin(){
-  showPrompt("Enter a new 4-digit PIN:", (val)=>{
-    if(val && /^\d{4}$/.test(val)){ APP.pin=val; saveApp(); showAlert("PIN updated."); }
-    else{ showAlert("PIN must be exactly 4 digits."); }
-  }, APP.pin);
+  showPrompt("Enter a new 4-digit PIN:", async (val)=>{
+    if(!(val && /^\d{4}$/.test(val))){ showAlert("PIN must be exactly 4 digits."); return; }
+    // Cloud mode: PIN change goes through the set-pin edge function so the
+    // hash is written server-side. If a PIN is already set, we prompt for
+    // the current one to block a session-hijack silent change.
+    if(CLOUD && AUTH && AUTH.setPin){
+      const send = async (currentPin)=>{
+        const r = await AUTH.setPin(val, currentPin);
+        if(r.ok){ APP.pin="__server__"; showAlert("PIN updated."); }
+        else if(r.error==="current_pin_required" || r.error==="current_pin_wrong") showAlert("That current PIN was wrong.");
+        else showAlert("Could not update PIN.");
+      };
+      if(APP.pin==="__server__"){
+        showPrompt("Enter your current PIN to confirm:", (cur)=>{ send(cur); }, "");
+      } else {
+        send();
+      }
+      return;
+    }
+    // Local mode fallback.
+    APP.pin=val; saveApp(); showAlert("PIN updated.");
+  }, "");
 }
 function parentRosterHTML(){
   let html = `<div class="crumb"><a onclick="S.view='parent-home';render();">Parent area</a> / Manage roster</div>
