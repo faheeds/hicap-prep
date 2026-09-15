@@ -244,6 +244,32 @@
   .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px;
     overflow:hidden; clip:rect(0,0,0,0); border:0;}
 
+  /* Accessibility — every focusable custom-styled control gets the same
+     focus-visible ring. Design spec §7 requires "2px --flare outline at 2px
+     offset on every interactive element" and this catches every button /
+     radio / tab that doesn't hit an earlier .btn rule (roster rows, keypad
+     keys, segmented pickers, tabs, day rows, week heads, opt-tiles,
+     avatar-pick, expl-toggle, chip-student, icon-btn — none of which
+     otherwise get an outline). */
+  button:focus-visible,
+  [role="radio"]:focus-visible,
+  [role="tab"]:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 2px solid var(--flare);
+    outline-offset: 2px;
+  }
+  /* Respect the OS reduced-motion preference. Kills the spinner, the "LIVE"
+     pulse on the running mock, and the caret-rotate transitions. Content
+     still updates — only decorative motion is suppressed. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   /* Roster row — 38px avatar, name (ellipsis single line), meta line, trailing arrow. */
   .roster-row{display:flex; align-items:center; gap:var(--space-3);
     min-height:64px; padding:var(--space-2) 0;
@@ -320,7 +346,9 @@
     color:#ffffff;}
   .badge .lbl{font-size:10px; text-align:center; color:var(--neutral-800); line-height:1.2;}
   .badge.locked .chip{background:transparent; border:1px dashed var(--neutral-400); color:var(--neutral-400);}
-  .badge.locked .lbl{color:var(--neutral-500);}
+  /* Was --neutral-500 -> 3.06:1 contrast on --bg, fails WCAG AA for 10px
+     text. --neutral-600 is 4.79:1, passes AA. */
+  .badge.locked .lbl{color:var(--neutral-600);}
   .badge-empty{padding:var(--space-4) var(--space-3);
     border:1px dashed var(--neutral-400); border-radius:var(--radius-md);
     display:flex; flex-direction:column; gap:var(--space-1);}
@@ -858,7 +886,10 @@ function modalSubmitPrompt(){
 }
 function modalHTML(){
   if(!MODAL) return "";
-  let inner = `<div class="modal-overlay"><div class="modal-box"><p>${MODAL.message}</p>`;
+  // role=dialog + aria-modal so AT treats the overlay as a modal dialog;
+  // aria-labelledby points at the message text so the dialog announces
+  // itself when it opens.
+  let inner = `<div class="modal-overlay"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalMsg"><p id="modalMsg">${MODAL.message}</p>`;
   if(MODAL.mode==="alert"){
     inner += `<div class="btnbar"><button class="btn forest" onclick="closeModal()">OK</button></div>`;
   } else if(MODAL.mode==="confirm"){
@@ -1095,7 +1126,9 @@ function render(){
   const parts = [];
   parts.push(headerHTML({minimal: gated}));
   if(!gated && showTabs()) parts.push(tabRowHTML());
-  parts.push(`<div class="view ${flushView()?"view-flush":""}">${bodyHTML()}</div>`);
+  // <main> gives assistive tech the primary landmark so screen-reader
+  // rotor / "skip to main" gestures land on the actual screen content.
+  parts.push(`<main class="view ${flushView()?"view-flush":""}" id="main">${bodyHTML()}</main>`);
   parts.push(legalFooterHTML());
   app.innerHTML = parts.join("") + modalHTML();
   if(typeof window!=="undefined"){
@@ -1143,8 +1176,8 @@ function headerHTML(opts){
   const showLock = !opts.minimal;
   let inner = `<span class="wordmark">HiCap Prep</span><span class="spacer"></span>`;
   if(showChip){
-    inner += `<button class="chip-student" onclick="switchStudent()" title="Switch student">
-      <span class="av">${initialsFor(student.name).toUpperCase()}</span>
+    inner += `<button class="chip-student" onclick="switchStudent()" title="Switch student" aria-label="Signed in as ${student.name}. Tap to switch student.">
+      <span class="av" aria-hidden="true">${initialsFor(student.name).toUpperCase()}</span>
       <span class="who">${student.name.split(/\s+/)[0]}</span>
     </button>`;
   }
@@ -1239,9 +1272,13 @@ function authHTML(){
       <button class="btn forest" ${AUTH_UI.busy?'disabled':''} onclick="${submitFn}">${AUTH_UI.busy?'…':submitLabel}</button>
     </div>
     <div style="margin-top:14px;font-size:.82rem;">`;
-  if(!isSignup) html += `<a onclick="setAuthMode('signup')" style="color:var(--forest);cursor:pointer;">Need an account? Sign up →</a><br>`;
-  if(!isMagic) html += `<a onclick="setAuthMode('magic')" style="color:var(--forest);cursor:pointer;">Email me a magic link instead →</a><br>`;
-  if(isSignup || isMagic) html += `<a onclick="setAuthMode('signin')" style="color:var(--forest);cursor:pointer;">← Back to sign in</a>`;
+  // These were `<a onclick>` without href — not focusable, no keyboard action.
+  // Buttons make them tabbable and Enter/Space-actionable, and drop the stale
+  // forest-token color reference (removed in the E4-7 palette rewrite, so the
+  // browser was falling back to default link blue).
+  if(!isSignup) html += `<button type="button" class="btn btn-ghost" onclick="setAuthMode('signup')">Need an account? Sign up →</button><br>`;
+  if(!isMagic) html += `<button type="button" class="btn btn-ghost" onclick="setAuthMode('magic')">Email me a magic link instead →</button><br>`;
+  if(isSignup || isMagic) html += `<button type="button" class="btn btn-ghost" onclick="setAuthMode('signin')">← Back to sign in</button>`;
   html += `</div></div>`;
   return html;
 }
@@ -1298,7 +1335,7 @@ async function authDoSignout(){
 function consentHTML(){
   const canSubmit = CONSENT_UI.parentBox && CONSENT_UI.policyBox && !CONSENT_UI.busy;
   return `<div class="panel"><h2>Before you add your kids</h2>
-    <p>HiCap Prep will store, per kid on your roster: a first name (or nickname), an emoji avatar, their grade level, and their practice history on this app. Nothing else about your child is collected. See the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--forest);">Privacy Policy</a> for the full breakdown.</p>
+    <p>HiCap Prep will store, per kid on your roster: a first name (or nickname), an emoji avatar, their grade level, and their practice history on this app. Nothing else about your child is collected. See the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--flare-800);">Privacy Policy</a> for the full breakdown.</p>
     <p>Because kids under 13 will be using this app, the law requires us to record that <em>you</em> — the parent or guardian — have consented to that data being stored. Two checkboxes and you're through.</p>
     ${CONSENT_UI.err ? `<div class="warn">${CONSENT_UI.err}</div>` : ``}
     <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;cursor:pointer;">
@@ -1307,7 +1344,7 @@ function consentHTML(){
     </label>
     <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;cursor:pointer;">
       <input type="checkbox" id="consentPolicyBox" ${CONSENT_UI.policyBox?"checked":""} onchange="CONSENT_UI.policyBox=this.checked;render();">
-      <span>I've read the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--forest);">Privacy Policy</a> and consent to my child's data being collected as described there.</span>
+      <span>I've read the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--flare-800);">Privacy Policy</a> and consent to my child's data being collected as described there.</span>
     </label>
     <div class="btnbar">
       <button class="btn forest" ${canSubmit?"":"disabled"} onclick="submitConsent()">${CONSENT_UI.busy?"Saving…":"I consent — continue"}</button>
@@ -1380,10 +1417,14 @@ function rosterHTML(){
         <input class="input" id="newName" placeholder="What should we call them?" autofocus>
       </div>
       <div class="field">
-        <label>Grade level</label>
-        <div class="segmented" role="listbox" aria-label="Grade level">
+        <label id="gradeLabel">Grade level</label>
+        <!-- radiogroup + role=radio matches the segmented control's actual
+             semantics (pick exactly one). role=listbox was wrong — that
+             requires role=option children, not buttons. aria-checked, not
+             aria-selected, is the correct property for role=radio. -->
+        <div class="segmented" role="radiogroup" aria-labelledby="gradeLabel">
           ${GRADE_OPTIONS.map(g=>
-            `<button type="button" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();" aria-selected="${S.newGrade===g}">${g}</button>`
+            `<button type="button" role="radio" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();" aria-checked="${S.newGrade===g}">${g}</button>`
           ).join("")}
         </div>
         <div class="note">${gradeLabel(S.newGrade)} · CogAT Level ${gradeToLevel(S.newGrade)}. Grades 1 and 3–11 are on the roadmap; only grade 7 has a content bank so far.</div>
@@ -1880,7 +1921,11 @@ function runnerHTML(){
   // Timed mock uses the top timer bar; untimed uses the standard back row.
   let chrome;
   if(r.timed){
-    chrome = `<div class="timerbar" id="timerbar">
+    // role=timer + aria-live=off so AT knows what this element is without
+    // shouting every second (WCAG's practical guidance for countdown UI).
+    // The clock is visual; the runner's own alerts handle the audible
+    // "time's up" via the auto-submit -> results transition.
+    chrome = `<div class="timerbar" id="timerbar" role="timer" aria-live="off" aria-label="Mock test time remaining">
       <span class="small">${r.title}</span>
       <span class="time" id="timeval">${fmtTime(r.remaining)}</span>
     </div>`;
@@ -2448,9 +2493,9 @@ function parentRosterHTML(){
         <input class="input" id="parentNewName" placeholder="What should we call them?">
       </div>
       <div class="field">
-        <label>Grade level</label>
-        <div class="segmented">
-          ${GRADE_OPTIONS.map(g=>`<button type="button" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();">${g}</button>`).join("")}
+        <label id="parentGradeLabel">Grade level</label>
+        <div class="segmented" role="radiogroup" aria-labelledby="parentGradeLabel">
+          ${GRADE_OPTIONS.map(g=>`<button type="button" role="radio" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();" aria-checked="${S.newGrade===g}">${g}</button>`).join("")}
         </div>
       </div>
       <div class="field">
@@ -2485,7 +2530,7 @@ function mockConfigHTML(){
   const m = MOCK_DEFS.find(x => x.id === S.mockConfigId);
   const totalQ = 9 * MOCK_PER_SUB;
   const students = Object.values(APP.students);
-  const studentButtons = students.map(s=>`<button type="button" class="${S.mockStudentId===s.id?"sel":""}" onclick="S.mockStudentId='${s.id}';render();">${s.name.split(/\s+/)[0]}</button>`).join("");
+  const studentButtons = students.map(s=>`<button type="button" role="radio" class="${S.mockStudentId===s.id?"sel":""}" onclick="S.mockStudentId='${s.id}';render();" aria-checked="${S.mockStudentId===s.id}">${s.name.split(/\s+/)[0]}</button>`).join("");
   return `${parentHeaderHTML(m.title, "Parent area · mock test")}
   <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
     <div class="mock-panel">
@@ -2495,8 +2540,8 @@ function mockConfigHTML(){
       </div>
       <div class="note">${m.note}</div>
       <div class="field">
-        <label>Who is sitting it?</label>
-        <div class="segmented">${studentButtons}</div>
+        <label id="mockStudentLabel">Who is sitting it?</label>
+        <div class="segmented" role="radiogroup" aria-labelledby="mockStudentLabel">${studentButtons}</div>
       </div>
       <div class="field" style="max-width:220px;">
         <label>Timer (minutes, 0 = untimed)</label>
