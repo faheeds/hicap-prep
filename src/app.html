@@ -401,6 +401,62 @@
   .expl-toggle .caret{transition:transform 0.15s ease;}
   .expl-toggle.open .caret{transform:rotate(180deg);}
 
+  /* Parent PIN gate — dots + keypad. */
+  .pin-gate{display:flex; flex-direction:column; align-items:center;
+    gap:var(--space-4); padding:var(--space-6) var(--space-4);}
+  .pin-dots{display:flex; gap:var(--space-3);}
+  .pin-dots span{width:14px; height:14px; border-radius:50%;
+    border:1px solid var(--neutral-400); background:transparent;}
+  .pin-dots span.filled{background:var(--flare); border-color:var(--flare);}
+  .pin-err-line{min-height:1.4em; font-size:12px; color:var(--flare-800);
+    text-align:center;}
+  .keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-2);
+    width:100%; max-width:260px;}
+  .keypad button{min-height:56px; background:var(--surface);
+    border:1px solid var(--divider); border-radius:var(--radius-md);
+    font-family:var(--font-heading); font-size:20px; font-variant-numeric:tabular-nums;
+    color:var(--ink); cursor:pointer;}
+  .keypad button.op{font-family:var(--font-body); font-size:12px;
+    letter-spacing:0.02em;}
+  .keypad button:hover:not(:disabled){background:var(--flare-100);}
+  .keypad button:disabled{opacity:0.45; cursor:not-allowed;}
+  .keypad .keypad-blank{background:transparent; border-color:transparent;
+    pointer-events:none;}
+  /* Hidden input used to buffer the PIN — tests write to .value directly.
+     Kept off-screen with .sr-only so real users interact with the keypad. */
+
+  /* Parent-mode header row (back-row shape but with a Lock action). */
+  .parent-header{display:flex; align-items:flex-start;
+    padding:var(--space-3) var(--space-4);
+    border-bottom:1px solid var(--divider); gap:var(--space-3);}
+  .parent-header .body{flex:1; min-width:0;
+    display:flex; flex-direction:column; gap:var(--space-1);}
+
+  /* Mock launcher panels. */
+  .mock-panel{border:1px solid var(--divider); border-radius:var(--radius-md);
+    padding:var(--space-3);
+    display:flex; flex-direction:column; gap:var(--space-3);}
+  .mock-running{border-color:var(--flare); background:var(--surface);
+    box-shadow:var(--shadow-md);}
+  .mock-clock{font-family:var(--font-heading); font-size:52px;
+    font-variant-numeric:tabular-nums; text-align:center; line-height:1;}
+  .live-pill{color:var(--flare-800); font-size:11px; letter-spacing:0.14em;
+    text-transform:uppercase; animation:pulse 2.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.45;}}
+
+  /* Parent progress table. */
+  .ptable{width:100%; border-collapse:collapse;}
+  .ptable th{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--neutral-600); font-weight:400;
+    padding:var(--space-2) var(--space-1);
+    border-bottom:1px solid var(--divider); text-align:left;}
+  .ptable th.num, .ptable td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .ptable td{padding:var(--space-2) var(--space-1);
+    border-bottom:1px solid var(--divider); font-size:13px;}
+  .ptable tr:hover td{background:rgba(29,27,46,0.04);}
+  .ptable .ellipsis{max-width:150px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;}
+
   /* Effort board. */
   .board-row{display:flex; align-items:center; gap:var(--space-3);
     min-height:56px; padding:var(--space-2) 0;
@@ -543,7 +599,9 @@ let S = {mode:"student", view:"roster",
   // Route/program: multiple weeks can be open at once (matches the design's
   // Expand-all/Collapse-all toggle). Defaults to just the current week when
   // a student is selected — see openDefaultProgramWeeks().
-  openWeeks:new Set([1])};
+  openWeeks:new Set([1]),
+  // Parent PIN error message — kept in state so re-render doesn't wipe it.
+  pinErr:""};
 
 function currentStudent(){ return CUR ? APP.students[CUR] : null; }
 
@@ -1751,18 +1809,61 @@ function leaderboardHTML(){
 }
 
 /* ---------- PARENT AREA ---------- */
+// PIN gate — design screen 7. Buffer digits into #pinInput so the existing
+// tests (which do `pinInput.value = ...; tryPin();`) keep working; the
+// keypad clicks call pinPress()/pinDelete() which manipulate the same
+// input. A submit fires automatically as soon as the 4th digit lands.
 function parentGateHTML(){
-  const setupHint = (CLOUD && APP.pin==="1234") ? "First time? Any 4 digits will set the PIN." : "";
-  return `<div class="pingate"><h2>Parent access</h2>
-    <p class="note">Enter the 4-digit parent PIN to manage students and run mock tests. Default is 1234.${setupHint?" "+setupHint:""}</p>
-    <input id="pinInput" maxlength="4" inputmode="numeric" placeholder="••••">
-    <div id="pinErr" class="warn" style="display:none;"></div>
-    <button class="btn forest" onclick="tryPin()">Unlock</button></div>`;
+  const setupHint = (CLOUD && APP.pin==="1234") ? "Any four digits sets the PIN the first time." : "Default is 1234 until you change it.";
+  const bufLen = _pinBufferLen();
+  const dots = [0,1,2,3].map(i=>`<span class="${i<bufLen?"filled":""}"></span>`).join("");
+  const keys = ["1","2","3","4","5","6","7","8","9",null,"0","del"];
+  const keypad = keys.map(k=>{
+    if(k===null) return `<div class="keypad-blank"></div>`;
+    if(k==="del") return `<button class="op" onclick="pinDelete()" aria-label="Delete last digit">Delete</button>`;
+    return `<button onclick="pinPress('${k}')" aria-label="Digit ${k}">${k}</button>`;
+  }).join("");
+  return `<div class="pin-gate">
+    ${ICON("lock",{size:26,color:"var(--flare)"})}
+    <h2 class="heading">Parent area</h2>
+    <p class="note" style="text-align:center; max-width:34ch;">Four digits. Progress, mock tests and settings live behind here. ${setupHint}</p>
+    <div class="pin-dots" aria-hidden="true">${dots}</div>
+    <input id="pinInput" class="sr-only" maxlength="4" inputmode="numeric" aria-label="PIN" oninput="onPinInput()">
+    <div id="pinErr" role="status" class="pin-err-line">${S.pinErr||""}</div>
+    <div class="keypad">${keypad}</div>
+    <button class="btn btn-ghost" onclick="switchStudent()">Back to students</button>
+  </div>`;
+}
+function _pinBufferLen(){
+  const el = typeof document!=="undefined" ? document.getElementById("pinInput") : null;
+  return el ? (el.value || "").replace(/\D/g,"").slice(0,4).length : 0;
+}
+function pinPress(d){
+  const el = document.getElementById("pinInput");
+  if(!el) return;
+  const cur = (el.value||"").replace(/\D/g,"").slice(0,3);
+  el.value = cur + d;
+  if(el.value.length === 4) tryPin(); else render();
+}
+function pinDelete(){
+  const el = document.getElementById("pinInput");
+  if(!el) return;
+  el.value = (el.value||"").slice(0,-1);
+  render();
+}
+function onPinInput(){
+  // Called when a real keyboard fills the (screen-reader-only) input.
+  const el = document.getElementById("pinInput");
+  if(!el) return;
+  el.value = (el.value||"").replace(/\D/g,"").slice(0,4);
+  if(el.value.length === 4) tryPin(); else render();
 }
 async function tryPin(){
-  const v=document.getElementById("pinInput").value.trim();
-  const errEl=document.getElementById("pinErr");
-  function showErr(msg){ errEl.textContent=msg; errEl.style.display="block"; }
+  const inputEl = document.getElementById("pinInput");
+  const v = (inputEl ? inputEl.value : "").trim();
+  function showErr(msg){ S.pinErr = msg; if(inputEl) inputEl.value = ""; render(); }
+  function clearErr(){ S.pinErr = ""; }
+  clearErr();
   if(!/^\d{4}$/.test(v)){ showErr("Enter a 4-digit PIN."); return; }
 
   // Cloud mode: server verifies the hash + enforces rate limiting.
@@ -1790,49 +1891,88 @@ async function tryPin(){
   if(v===APP.pin){ S.parentUnlocked=true; S.view="parent-home"; render(); }
   else showErr("Incorrect PIN.");
 }
-function parentHomeHTML(){
-  let html = `<div class="crumb">Parent area (unlocked)</div>
-  <div class="panel"><h2>All students</h2>`;
-  const list=Object.values(APP.students);
-  if(list.length===0) html += `<p class="note">No students yet — add one from the roster manager below.</p>`;
-  else{
-    html += `<table class="hist"><tr><th>Name</th><th>Progress</th><th>Streak</th><th>Badges</th><th>Last active</th></tr>`;
-    list.forEach(st=>{
-      const last = st.history[0] ? new Date(st.history[0].date).toLocaleDateString() : "—";
-      html += `<tr><td>${st.avatar} ${st.name}</td><td>${programCompletionCount(st)}/70</td>
-        <td>🔥${st.streak.current||0}</td><td>★${computeBadges(st).filter(b=>b.earned).length}</td><td>${last}</td></tr>`;
-    });
-    html += `</table>`;
-  }
-  html += `</div>
-  <div class="panel"><h2>Mock tests</h2>
-  <p class="note">Pick a student, set the timer, and start. Questions are randomly drawn fresh each time (${MOCK_PER_SUB} per subtest, 45 total) — hand the device over, it auto-submits at zero.</p>`;
-  MOCK_DEFS.forEach(m=>{
-    html += `<div class="lockrow"><div><span class="name">${m.title}</span><div class="meta">${m.note}</div></div>
-      <button class="btn forest" ${list.length?'':'disabled'} onclick="openMockConfig(${m.id})">Configure &amp; start</button></div>`;
-  });
-  html += `</div>
-  <div class="panel"><h2>Settings</h2><div class="btnbar">
-    <button class="btn secondary" onclick="S.view='parent-history';render();">Mock history</button>
-    <button class="btn secondary" onclick="S.view='parent-roster';render();">Manage roster</button>
-    <button class="btn secondary" onclick="changePin()">Change PIN</button>
-    <button class="btn secondary" onclick="S.mode='student';S.parentUnlocked=false;S.view=CUR?'dashboard':'roster';render();">Lock &amp; exit</button>
-    ${CLOUD ? `<button class="btn secondary" onclick="authDoSignout()">Sign out</button>` : ``}
-  </div>
-  ${CLOUD && currentUserEmail() ? `<p class="note" style="margin-top:10px;">Signed in as ${currentUserEmail()}</p>` : ``}
-  </div>
-  <div class="panel"><h2>Export your family's data</h2>
-    <p class="note">Download every practice / mock / program session you've logged. JSON preserves everything; CSV is spreadsheet-friendly.</p>
-    <div class="btnbar">
-      <button class="btn secondary" onclick="exportAsJSON()">Download JSON</button>
-      <button class="btn secondary" onclick="exportAsCSV()">Download CSV</button>
+// Parent header row — kicker (day/week) + heading + right-aligned Lock ghost.
+function parentHeaderHTML(title, kicker){
+  const nowDate = new Date();
+  const dateLabel = kicker || nowDate.toLocaleDateString(undefined, {weekday:"long", month:"short", day:"numeric"});
+  return `<div class="parent-header">
+    <div class="body">
+      <div class="caption">${dateLabel}</div>
+      <h2 class="heading">${title}</h2>
     </div>
-  </div>
-  <div class="panel"><h2>Delete family data</h2>
-    <p class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</p>
-    <div class="btnbar"><button class="btn clay" onclick="confirmDeleteAccount()">Delete my family's account</button></div>
+    <button class="btn btn-ghost" onclick="parentLock()">${ICON("lock",{size:16})} Lock</button>
   </div>`;
-  return html;
+}
+function parentLock(){
+  S.mode="student"; S.parentUnlocked=false; S.view = CUR ? "dashboard" : "roster";
+  render();
+}
+function parentHomeHTML(){
+  const list = Object.values(APP.students);
+  const mockLaunchers = MOCK_DEFS.map(m=>{
+    const totalQ = 9 * MOCK_PER_SUB;
+    return `<div class="mock-panel">
+      <div>
+        <div class="subhead">${m.title}</div>
+        <div class="small tnum" style="color:var(--neutral-700);">${totalQ} questions${m.suggested?` · ${m.suggested} minutes`:``} · all three strands</div>
+      </div>
+      <div class="note">${m.note}</div>
+      <button class="btn btn-primary btn-cta btn-block" ${list.length?"":"disabled"} onclick="openMockConfig(${m.id})">Configure &amp; start</button>
+    </div>`;
+  }).join("");
+
+  const rows = list.map(st=>{
+    const last = st.history[0] ? new Date(st.history[0].date).toLocaleDateString() : "—";
+    const cur = (st.streak && st.streak.current) || 0;
+    return `<tr>
+      <td class="ellipsis"><span style="color:var(--neutral-700);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">${gradeLabel(st.grade||7)}</span><br>${st.name}</td>
+      <td class="num">${programCompletionCount(st)}/70</td>
+      <td class="num">${cur} d</td>
+      <td class="num">${last}</td>
+    </tr>`;
+  }).join("");
+  const progressTable = list.length === 0
+    ? `<p class="note">No students yet — use "Manage roster" below to add one.</p>`
+    : `<table class="ptable"><thead><tr>
+        <th>Student</th><th class="num">Lessons</th><th class="num">Streak</th><th class="num">Last</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+
+  return `${parentHeaderHTML("Parent area")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-6);">
+    <div class="stack-3">
+      <div class="caption">Mock tests</div>
+      ${mockLaunchers}
+    </div>
+    <div class="stack-3">
+      <div class="caption">Roster</div>
+      ${progressTable}
+    </div>
+    <div class="stack-3">
+      <div class="caption">Settings</div>
+      <div class="row-actions">
+        <button class="btn btn-secondary" onclick="S.view='parent-history';render();">Mock history</button>
+        <button class="btn btn-secondary" onclick="S.view='parent-roster';render();">Manage roster</button>
+        <button class="btn btn-secondary" onclick="changePin()">Change PIN</button>
+        ${CLOUD ? `<button class="btn btn-secondary" onclick="authDoSignout()">Sign out</button>` : ``}
+      </div>
+      ${CLOUD && currentUserEmail() ? `<div class="note">Signed in as ${currentUserEmail()}</div>` : ``}
+    </div>
+    <div class="stack-3">
+      <div class="caption">Export your family's data</div>
+      <div class="note">Download every practice / mock / program session you've logged. JSON preserves everything; CSV is spreadsheet-friendly.</div>
+      <div class="row-actions">
+        <button class="btn btn-secondary" onclick="exportAsJSON()">Download JSON</button>
+        <button class="btn btn-secondary" onclick="exportAsCSV()">Download CSV</button>
+      </div>
+    </div>
+    <div class="stack-3">
+      <div class="caption">Delete family data</div>
+      <div class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</div>
+      <div class="row-actions">
+        <button class="btn btn-destructive" onclick="confirmDeleteAccount()">Delete my family's account</button>
+      </div>
+    </div>
+  </div>`;
 }
 /* ---------- DATA EXPORT (Epic 1, E1-8) ----------
    Client-side export of every practice/mock/program session for the whole
@@ -1946,19 +2086,45 @@ function changePin(){
   }, "");
 }
 function parentRosterHTML(){
-  let html = `<div class="crumb"><a onclick="S.view='parent-home';render();">Parent area</a> / Manage roster</div>
-  <div class="panel"><h2>Students</h2>`;
-  Object.values(APP.students).forEach(st=>{
-    html += `<div class="lockrow"><div><span class="name">${st.avatar} ${st.name}</span>
-      <div class="meta">Joined ${new Date(st.createdAt).toLocaleDateString()} · ${st.history.length} sessions logged</div></div>
-      <button class="btn clay" onclick="confirmRemove('${st.id}')">Remove</button></div>`;
-  });
-  html += `</div><div class="panel"><h3>Add a student</h3>
-    <input class="nameinput" id="parentNewName" placeholder="First name">
-    <div class="avatarpick">`;
-  AVATARS.forEach(em=>{ html += `<div class="em ${S.newAvatar===em?'sel':''}" onclick="S.newAvatar='${em}';render();">${em}</div>`; });
-  html += `</div><button class="btn forest" onclick="parentAddStudent()">Add</button></div>`;
-  return html;
+  const list = Object.values(APP.students);
+  const rows = list.map(st=>`<div class="row row-static">
+      <span class="avatar">${initialsFor(st.name).toUpperCase()}</span>
+      <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+        <span style="font-size:15px;">${st.name}</span>
+        <span class="small" style="color:var(--neutral-700);">${gradeLabel(st.grade||7)} · joined ${new Date(st.createdAt).toLocaleDateString()} · ${(st.history||[]).length} sessions</span>
+      </span>
+      <button class="btn btn-destructive" style="min-height:36px;font-size:13px;padding:0 var(--space-3);" onclick="confirmRemove('${st.id}')">Remove</button>
+    </div>`).join("");
+  return `${parentHeaderHTML("Manage roster","Parent area · roster")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-6);">
+    <div class="stack-3">
+      <div class="caption">Students</div>
+      <div class="rowlist">${rows || `<p class="note">No students yet.</p>`}</div>
+    </div>
+    <div class="panel">
+      <div class="subhead">Add a student</div>
+      <div class="field">
+        <label for="parentNewName">First name</label>
+        <input class="input" id="parentNewName" placeholder="What should we call them?">
+      </div>
+      <div class="field">
+        <label>Grade level</label>
+        <div class="segmented">
+          ${GRADE_OPTIONS.map(g=>`<button type="button" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();">${g}</button>`).join("")}
+        </div>
+      </div>
+      <div class="field">
+        <label>Avatar</label>
+        <div class="avatar-picker">
+          ${AVATARS.map(em=>`<button type="button" class="avatar-pick ${S.newAvatar===em?"sel":""}" onclick="S.newAvatar='${em}';render();">${em}</button>`).join("")}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-primary" onclick="parentAddStudent()">Add student</button>
+        <button class="btn btn-ghost" onclick="S.view='parent-home';render();">Back</button>
+      </div>
+    </div>
+  </div>`;
 }
 function confirmRemove(id){
   const st=APP.students[id];
@@ -1967,53 +2133,78 @@ function confirmRemove(id){
 function parentAddStudent(){
   const name=document.getElementById("parentNewName").value.trim();
   if(!name){ showAlert("Enter a name first."); return; }
-  addStudent(name, S.newAvatar); render();
+  addStudent(name, S.newAvatar, S.newGrade); render();
 }
-function openMockConfig(id){ S.mockConfigId=id; S.mockStudentId=Object.keys(APP.students)[0]||null; S.view="mock-config"; render(); }
+function openMockConfig(id){
+  S.mockConfigId=id;
+  S.mockStudentId = Object.keys(APP.students)[0] || null;
+  S.view="mock-config";
+  render();
+}
 function mockConfigHTML(){
-  const m=MOCK_DEFS.find(x=>x.id===S.mockConfigId);
-  const totalQ = 9*MOCK_PER_SUB;
-  const students=Object.values(APP.students);
-  return `<div class="crumb"><a onclick="S.view='parent-home';render();">Parent area</a> / ${m.title}</div>
-  <div class="panel"><h2>${m.title}</h2><p class="note">${totalQ} questions, randomly drawn across all 9 subtests at Tier ${m.tier}. ${m.note}</p>
-  <label>Student:
-    <select id="mockStudent" onchange="S.mockStudentId=this.value;">
-      ${students.map(s=>`<option value="${s.id}" ${S.mockStudentId===s.id?'selected':''}>${s.avatar} ${s.name}</option>`).join("")}
-    </select>
-  </label><br><br>
-  <label>Timer (minutes, 0 = untimed): <input class="mininput" id="mockMinutes" type="number" min="0" value="${m.suggested}"></label>
-  <div class="btnbar">
-    <button class="btn clay" onclick="launchMock(${m.id})">Start mock test now</button>
-    <button class="btn secondary" onclick="S.view='parent-home';render();">Cancel</button>
-  </div></div>`;
+  const m = MOCK_DEFS.find(x => x.id === S.mockConfigId);
+  const totalQ = 9 * MOCK_PER_SUB;
+  const students = Object.values(APP.students);
+  const studentButtons = students.map(s=>`<button type="button" class="${S.mockStudentId===s.id?"sel":""}" onclick="S.mockStudentId='${s.id}';render();">${s.name.split(/\s+/)[0]}</button>`).join("");
+  return `${parentHeaderHTML(m.title, "Parent area · mock test")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="mock-panel">
+      <div>
+        <div class="subhead">${m.title}</div>
+        <div class="small tnum" style="color:var(--neutral-700);">${totalQ} questions · Tier ${m.tier} · all three strands</div>
+      </div>
+      <div class="note">${m.note}</div>
+      <div class="field">
+        <label>Who is sitting it?</label>
+        <div class="segmented">${studentButtons}</div>
+      </div>
+      <div class="field" style="max-width:220px;">
+        <label>Timer (minutes, 0 = untimed)</label>
+        <input class="input tnum" id="mockMinutes" type="number" min="0" value="${m.suggested}">
+        <span id="mockStudent" data-cur="${S.mockStudentId||""}" class="sr-only"></span>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-primary btn-cta" onclick="launchMock(${m.id})">Start the timer</button>
+        <button class="btn btn-ghost" onclick="S.view='parent-home';render();">Cancel</button>
+      </div>
+      <div class="note">Hand the device over once the timer starts. It keeps running if the screen sleeps, and the test auto-submits at zero.</div>
+    </div>
+  </div>`;
 }
 function launchMock(id){
-  const m=MOCK_DEFS.find(x=>x.id===id);
-  const mins=parseInt(document.getElementById("mockMinutes").value,10)||0;
-  const studentId=document.getElementById("mockStudent").value;
-  CUR=studentId;
-  const qs=collectMock(m.tier);
-  startRunner(m.title, qs, {timerSec:mins>0?mins*60:0, isMock:true, kind:"mock"});
+  const m = MOCK_DEFS.find(x => x.id === id);
+  const mins = parseInt(document.getElementById("mockMinutes").value, 10) || 0;
+  // The design uses a segmented control (buttons -> S.mockStudentId), but
+  // the existing test suite still writes to a `#mockStudent` element's value
+  // and reads it here. Preserve both paths.
+  const studentEl = document.getElementById("mockStudent");
+  const studentId = (studentEl && studentEl.value) || S.mockStudentId || Object.keys(APP.students)[0];
+  CUR = studentId;
+  const qs = collectMock(m.tier);
+  startRunner(m.title, qs, {timerSec: mins>0 ? mins*60 : 0, isMock: true, kind:"mock"});
 }
 function parentHistoryHTML(){
-  let html = `<div class="crumb"><a onclick="S.view='parent-home';render();">Parent area</a> / Mock history</div>
-  <div class="panel"><h2>Mock test history</h2>`;
-  const rows=[];
+  const rows = [];
   Object.values(APP.students).forEach(st=>{
-    st.history.filter(h=>h.kind==="mock").forEach(h=>rows.push({name:st.name, avatar:st.avatar, ...h}));
+    (st.history||[]).filter(h => h.kind === "mock").forEach(h => rows.push({name: st.name, ...h}));
   });
-  rows.sort((a,b)=> new Date(b.date)-new Date(a.date));
-  if(rows.length===0) html += `<p class="note">No mock tests taken yet.</p>`;
-  else{
-    html += `<table class="hist"><tr><th>Date</th><th>Student</th><th>Test</th><th>Score</th><th>%</th></tr>`;
-    rows.forEach(r=>{
-      html += `<tr><td>${new Date(r.date).toLocaleDateString()}</td><td>${r.avatar} ${r.name}</td><td>${r.title}</td>
-        <td>${r.correct}/${r.total}</td><td>${Math.round(100*r.correct/r.total)}%</td></tr>`;
-    });
-    html += `</table>`;
-  }
-  html += `</div>`;
-  return html;
+  rows.sort((a,b) => new Date(b.date) - new Date(a.date));
+  const table = rows.length === 0
+    ? `<p class="note">No mock tests taken yet.</p>`
+    : `<table class="ptable"><thead><tr>
+        <th>Date</th><th>Student</th><th>Test</th><th class="num">Score</th><th class="num">%</th>
+      </tr></thead><tbody>${rows.map(r=>`<tr>
+        <td class="tnum">${new Date(r.date).toLocaleDateString()}</td>
+        <td class="ellipsis">${r.name}</td>
+        <td class="ellipsis">${r.title}</td>
+        <td class="num">${r.correct}/${r.total}</td>
+        <td class="num">${Math.round(100*r.correct/r.total)}%</td>
+      </tr>`).join("")}</tbody></table>`;
+  return `${parentHeaderHTML("Mock history","Parent area · history")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    ${table}
+    <button class="btn btn-ghost" onclick="S.view='parent-home';render();">${ICON("chevron-left",{size:16})}Back to parent area</button>
+  </div>`;
 }
 
 /* =========================================================
