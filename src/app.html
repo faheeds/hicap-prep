@@ -373,6 +373,34 @@
   .day-row .status.start{color:var(--flare-800);}
   .day-row .status.done{color:var(--flare-700);}
 
+  /* Quiz chrome — back row + progress track. */
+  .quiz-progress-track{height:5px; background:var(--flare-100);}
+  .quiz-progress-fill{height:100%; background:var(--flare-500);
+    transition:width 0.15s ease;}
+
+  /* Results — score block, strand rows, per-question breakdown. */
+  .score-block{display:flex; flex-direction:column; gap:var(--space-2);}
+  .score-figure{display:flex; align-items:baseline; gap:var(--space-2);}
+  .score-figure .n{font-family:var(--font-heading); font-size:42px; line-height:1;
+    font-variant-numeric:tabular-nums;}
+  .strand-dot{width:12px; height:12px; border-radius:50%; border:2px solid;}
+  .qresult{display:flex; flex-direction:column; gap:var(--space-2);
+    padding:var(--space-3) 0; border-top:1px solid var(--divider);}
+  .qresult:last-child{border-bottom:1px solid var(--divider);}
+  .qresult .mark{width:24px; height:24px; flex:none; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:2px solid; font-size:14px; font-weight:600;}
+  .qresult .yours{font-size:12px; color:var(--neutral-700);}
+  .qresult .verdict{align-self:flex-start; font-size:13px;}
+  .qresult .verdict.wrong{color:var(--flare-800); border-bottom:1px solid var(--flare);
+    padding-bottom:1px;}
+  .expl-toggle{background:none; border:none; padding:0; cursor:pointer;
+    color:var(--flare-800); font-family:var(--font-heading); font-weight:600;
+    font-size:13px; display:inline-flex; align-items:center; gap:6px;
+    align-self:flex-start;}
+  .expl-toggle .caret{transition:transform 0.15s ease;}
+  .expl-toggle.open .caret{transform:rotate(180deg);}
+
   /* Effort board. */
   .board-row{display:flex; align-items:center; gap:var(--space-3);
     min-height:56px; padding:var(--space-2) 0;
@@ -716,7 +744,11 @@ function startRunner(title, questions, opts){
   S.runner={ title, questions, answers:new Array(questions.length).fill(null),
     timed:!!opts.timerSec, remaining:opts.timerSec||0,
     isMock:!!opts.isMock, weekKey:opts.weekKey||null, kind:opts.kind||(opts.isMock?"mock":(opts.weekKey?"program":"practice")),
-    timerHandle:null };
+    timerHandle:null,
+    // qIndex: which question is currently on screen. The design shows one at
+    // a time (design screen 4). openExpl: which results explanations are
+    // expanded. scoring: brief disabled state on the Submit button.
+    qIndex:0, openExpl:new Set(), scoring:false };
   S.view="runner"; render();
   if(S.runner.timed){
     S.runner.timerHandle=setInterval(()=>{
@@ -1458,64 +1490,216 @@ function browseListHTML(){
 }
 function browseDirect(b,t,sub){ S.browseData={title:BLABEL[b]+" · Tier "+t+" · "+SLABEL[sub], qs:tagList(DRILLS[b][t][sub],sub)}; render(); }
 
-/* ---------- RUNNER (shared) ---------- */
+/* ---------- RUNNER (Quiz — design screen 4) ---------- */
+// Guess which strand this question belongs to (for the caption).
+function strandOfSubtest(sub){ return SUB_TO_BATTERY[sub] || null; }
+function optionLetter(i){ return String.fromCharCode(65 + i); }
+function allAnswered(r){
+  return r.answers.every(a => !(a === null || a === undefined || a === ""));
+}
+function currentAnswered(r){
+  const a = r.answers[r.qIndex];
+  return !(a === null || a === undefined || a === "");
+}
 function runnerHTML(){
-  const r=S.runner; let html="";
-  if(r.timed) html += `<div class="timerbar" id="timerbar"><span>${r.title}</span><span class="time" id="timeval">${fmtTime(r.remaining)}</span></div>`;
-  else html += `<div class="crumb">${r.title}</div>`;
-  html += `<div class="panel"><p class="note">Answer every question, then submit. You won't see whether you're right until you submit.</p></div>`;
-  r.questions.forEach((q,i)=>{
-    html += `<div class="qcard"><div class="qnum">QUESTION ${i+1} of ${r.questions.length}</div><div class="qtext">${q.q}</div>`;
-    if(q.o){
-      html += `<div class="opts">`;
-      q.o.forEach((opt,oi)=>{ html += `<div class="opt ${r.answers[i]===oi?'selected':''}" onclick="selectAnswer(${i},${oi})">${opt}</div>`; });
-      html += `</div>`;
-    } else {
-      html += `<input class="numin" type="text" placeholder="Your answer" value="${r.answers[i]||''}" oninput="selectAnswer(${i}, this.value)">`;
-    }
-    html += `</div>`;
-  });
-  html += `<div class="btnbar"><button class="btn forest" onclick="submitRunner(false)">Submit</button>
-    <button class="btn secondary" onclick="cancelRunner()">Cancel</button></div>`;
-  return html;
+  const r = S.runner;
+  const i = r.qIndex || 0;
+  const q = r.questions[i];
+  const total = r.questions.length;
+  const strand = strandOfSubtest(q._sub);
+  const strandLabel = strand ? BLABEL[strand] + " reasoning" : (r.title || "");
+  const answeredCount = r.answers.filter(a => !(a === null || a === undefined || a === "")).length;
+
+  // Timed mock uses the top timer bar; untimed uses the standard back row.
+  let chrome;
+  if(r.timed){
+    chrome = `<div class="timerbar" id="timerbar">
+      <span class="small">${r.title}</span>
+      <span class="time" id="timeval">${fmtTime(r.remaining)}</span>
+    </div>`;
+  } else {
+    chrome = `<div class="back-row">
+      <button class="btn btn-ghost" onclick="quizBack()">${ICON("chevron-left",{size:16})}Back</button>
+      <span class="spacer" style="flex:1;"></span>
+      <span class="small tnum" style="color:var(--neutral-700);">Question ${i+1} of ${total}</span>
+    </div>`;
+  }
+  const barPct = ((i+1)/total)*100;
+  const progress = `<div class="quiz-progress-track"><div class="quiz-progress-fill" style="width:${barPct}%;"></div></div>`;
+
+  // Body: strand caption, stem, then options (multiple-choice or numeric).
+  const chosen = r.answers[i];
+  let body;
+  if(q.o){
+    body = `<div class="opts">${q.o.map((opt, oi)=>{
+      const sel = chosen === oi ? "selected" : "";
+      return `<button class="opt ${sel}" onclick="selectAnswer(${i}, ${oi})">
+        <span class="letter">${optionLetter(oi)}</span>
+        <span style="flex:1; text-align:left;">${opt}</span>
+      </button>`;
+    }).join("")}</div>`;
+  } else {
+    body = `<div class="field" style="max-width:220px;">
+      <label>Your answer</label>
+      <input class="input input-numeric" inputmode="numeric" placeholder="—"
+        value="${(chosen==null?"":String(chosen)).replace(/"/g,"&quot;")}"
+        oninput="selectAnswer(${i}, this.value)">
+    </div>`;
+  }
+
+  const isLast = i === total - 1;
+  const nextDisabled = !currentAnswered(r);
+  const submitDisabled = !allAnswered(r) || r.scoring;
+  let stickyRight;
+  if(!isLast){
+    stickyRight = `<button class="btn btn-primary btn-cta" style="min-width:120px;" onclick="quizNext()" ${nextDisabled?"disabled":""}>Next</button>`;
+  } else {
+    const label = r.scoring ? "Scoring" : "Submit answers";
+    const spinner = r.scoring ? ICON("loader",{size:14}).replace('aria-hidden="true"','class="spin" aria-hidden="true"') : "";
+    stickyRight = `<button class="btn btn-primary btn-cta ${r.scoring?"btn-loading":""}" style="min-width:150px;" onclick="submitRunner(false)" ${submitDisabled?"disabled":""}>${spinner}${label}</button>`;
+  }
+
+  return `${chrome}${progress}
+    <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+      <div class="stack-3" style="gap:var(--space-2);">
+        <div class="caption-flare">${strandLabel}</div>
+        <div class="qtext">${q.q}</div>
+      </div>
+      ${body}
+      <p class="note">Answers stay hidden until you submit the whole set. You can go back and change any of them.</p>
+    </div>
+    <div class="sticky-bar" style="flex-direction:row; align-items:center;">
+      <div class="small" style="flex:1; color:var(--neutral-700);">${answeredCount} of ${total} answered</div>
+      ${stickyRight}
+    </div>`;
+}
+function quizBack(){
+  if(!S.runner) return;
+  if((S.runner.qIndex||0) === 0){ cancelRunner(); return; }
+  S.runner.qIndex--; render();
+}
+function quizNext(){
+  if(!S.runner) return;
+  if(!currentAnswered(S.runner)) return;
+  S.runner.qIndex = Math.min(S.runner.questions.length - 1, (S.runner.qIndex||0) + 1);
+  render();
 }
 function cancelRunner(){
-  if(S.runner.timerHandle) clearInterval(S.runner.timerHandle);
+  if(S.runner && S.runner.timerHandle) clearInterval(S.runner.timerHandle);
   S.runner=null; S.view = S.mode==="parent" ? "parent-home" : "dashboard"; render();
 }
 
-/* ---------- RESULTS ---------- */
-function resultsHTML(){
-  const r=S.runner; const pct=Math.round(100*r.score.correct/r.score.total);
-  let html = `<div class="crumb">Results</div>
-  <div class="scorebox"><div class="note">${r.title}</div>
-    <div class="big">${r.score.correct} / ${r.score.total}</div><div>${pct}% correct</div>`;
-  Object.keys(r.score.bySub).forEach(k=>{
-    const s=r.score.bySub[k]; const p=Math.round(100*s.c/s.n);
-    html += `<div class="barrow"><div class="lbl">${SLABEL[k]||k}</div>
-      <div class="track"><div class="fill" style="width:${p}%"></div></div><div>${s.c}/${s.n}</div></div>`;
-  });
-  html += `</div>`;
-  r.questions.forEach((q,i)=>{
-    const yours=r.answers[i]; let ok = q.o ? (yours===q.a) : ((yours||"").toString().trim()===q.a.toString().trim());
-    html += `<div class="qcard"><div class="qnum">QUESTION ${i+1}<span class="status ${ok?'correct':'incorrect'}">${ok?'CORRECT':'INCORRECT'}</span></div>
-      <div class="qtext">${q.q}</div>`;
-    if(q.o){
-      html += `<div class="opts">`;
-      q.o.forEach((opt,oi)=>{
-        let cls="opt"; if(oi===q.a) cls+=" correct"; else if(oi===yours && !ok) cls+=" incorrect";
-        html += `<div class="${cls}">${opt}${oi===q.a?' — correct answer':(oi===yours?' — your answer':'')}</div>`;
-      });
-      html += `</div>`;
-    } else { html += `<p>Your answer: <strong>${yours||'(blank)'}</strong> · Correct answer: <strong>${q.a}</strong></p>`; }
-    html += `<button class="explbtn" onclick="toggleExpl(${i})">Show explanation</button><div class="expl" id="expl${i}">${q.e}</div></div>`;
-  });
-  html += `<div class="btnbar"><button class="btn" onclick="finishResults()">Done</button></div>`;
-  return html;
+/* ---------- RESULTS (design screen 5) ---------- */
+function resultHeadline(correct, total){
+  if(total === 0) return "No score";
+  if(correct === total) return "Clean sweep";
+  if(correct === 0) return "One at a time";
+  const wrong = total - correct;
+  const nwords = ["zero","one","two","three","four","five","six","seven","eight","nine","ten"];
+  const cw = correct <= 10 ? nwords[correct] : String(correct);
+  const tw = total <= 10 ? nwords[total] : String(total);
+  const wnote = wrong === 1 ? "one to look at" : `${wrong <= 10 ? nwords[wrong] : wrong} to look at`;
+  return `${cw.charAt(0).toUpperCase()+cw.slice(1)} of ${tw}, ${wnote}`;
 }
-function toggleExpl(i){ document.getElementById("expl"+i).classList.toggle("show"); }
+function resultsHTML(){
+  const r = S.runner;
+  const st = currentStudent();
+  const total = r.score.total;
+  const correct = r.score.correct;
+  const kicker = r.weekKey ? `${(WEEK_TITLES[parseInt(r.weekKey.split("-")[0].slice(1),10)]||"Practice")} · ${total}-question set` : `${total}-question set`;
+
+  // By-strand rollup from bySub. Aggregate by battery, not by subtest.
+  const strandTotals = {verbal:{c:0,n:0}, quant:{c:0,n:0}, nonverbal:{c:0,n:0}};
+  Object.keys(r.score.bySub).forEach(sub=>{
+    const b = SUB_TO_BATTERY[sub]; if(!b) return;
+    strandTotals[b].c += r.score.bySub[sub].c;
+    strandTotals[b].n += r.score.bySub[sub].n;
+  });
+  const strandsBlock = `<div class="stack-3">
+    <div class="caption">By strand</div>
+    ${STRAND_ORDER.map(b=>{
+      const s = strandTotals[b];
+      const dot = s.n === 0
+        ? `<span class="strand-dot" style="border-color:${STRAND_COLOR[b]}; background:transparent;"></span>`
+        : (s.c === s.n
+            ? `<span class="strand-dot" style="border-color:${STRAND_COLOR[b]}; background:${STRAND_COLOR[b]};"></span>`
+            : `<span class="strand-dot" style="border-color:${STRAND_COLOR[b]}; background:transparent;"></span>`);
+      return `<div class="space-between" style="padding:var(--space-2) 0; border-top:1px solid var(--divider);">
+        <span class="small" style="flex:1;">${BLABEL[b]}</span>
+        <span class="small tnum" style="color:var(--neutral-700);">${s.n === 0 ? "—" : `${s.c}/${s.n}`}</span>
+        ${dot}
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  const scoreBlock = `<div class="score-block">
+    <div class="caption-flare">${kicker}</div>
+    <h2 class="heading">${resultHeadline(correct, total)}</h2>
+    <div class="score-figure">
+      <span class="n">${correct}/${total}</span>
+      <span class="small" style="color:var(--neutral-700);">correct</span>
+    </div>
+    <p class="note" style="max-width:44ch;">Nothing here counts toward the admissions test. The point is to find the one you want to look at again.</p>
+  </div>`;
+
+  const perQuestion = `<div class="stack-3">
+    <div class="caption">Question by question</div>
+    ${r.questions.map((q, i)=>{
+      const yours = r.answers[i];
+      const ok = q.o ? (yours === q.a) : ((yours||"").toString().trim() === q.a.toString().trim());
+      const strand = strandOfSubtest(q._sub) || "verbal";
+      const strandColor = STRAND_COLOR[strand];
+      const mark = ok
+        ? `<span class="mark" style="border-color:${strandColor}; background:${strandColor}; color:#fff;">${ICON("check",{size:14,color:"#fff"}).replace("<svg ","<svg style=\"display:block;\" ")}</span>`
+        : `<span class="mark" style="border-color:${strandColor}; color:var(--neutral-700);">·</span>`;
+      const yourText = q.o
+        ? (yours === null || yours === undefined ? "—" : `${optionLetter(yours)} · ${q.o[yours]}`)
+        : (yours == null || yours === "" ? "—" : String(yours));
+      const verdict = ok
+        ? `<div class="verdict" style="color:var(--neutral-700);">Correct</div>`
+        : `<div class="verdict wrong">Correct answer: ${q.o ? `${optionLetter(q.a)} · ${q.o[q.a]}` : q.a}</div>`;
+      const isOpen = r.openExpl && r.openExpl.has(i);
+      return `<div class="qresult">
+        <div style="display:flex; align-items:flex-start; gap:var(--space-3);">
+          ${mark}
+          <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;">
+            <div class="small">${q.q}</div>
+            <div class="yours">Your answer: ${yourText}</div>
+            ${verdict}
+            <button class="expl-toggle ${isOpen?"open":""}" onclick="toggleExpl(${i})">
+              <span>${isOpen?"Hide":"Show"} explanation</span>
+              <span class="caret">${ICON("chevron-down",{size:14})}</span>
+            </button>
+            <div class="expl ${isOpen?"show":""}">${q.e}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  return `<div class="view" style="padding:var(--space-4); gap:var(--space-6);">
+    ${scoreBlock}
+    ${strandsBlock}
+    ${perQuestion}
+  </div>
+  <div class="sticky-bar" style="flex-direction:row; gap:var(--space-2);">
+    <button class="btn btn-secondary btn-cta" style="flex:1;" onclick="finishResultsToRoute()">The route</button>
+    <button class="btn btn-primary btn-cta" style="flex:1;" onclick="finishResults()">Done for today</button>
+  </div>`;
+}
+function toggleExpl(i){
+  if(!S.runner) return;
+  const set = new Set(S.runner.openExpl || []);
+  if(set.has(i)) set.delete(i); else set.add(i);
+  S.runner.openExpl = set;
+  render();
+}
 function finishResults(){
   S.runner=null; S.view = S.mode==="parent" ? "parent-home" : "dashboard";
+  S.b=null;S.t=null;S.sub=null;S.browseData=null; render();
+}
+function finishResultsToRoute(){
+  S.runner=null; S.view = S.mode==="parent" ? "parent-home" : "program";
   S.b=null;S.t=null;S.sub=null;S.browseData=null; render();
 }
 
