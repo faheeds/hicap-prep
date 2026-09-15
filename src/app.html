@@ -284,7 +284,55 @@
   /* Small form helper — vertical stack with tight labels. */
   .stack-3{display:flex; flex-direction:column; gap:var(--space-3);}
   .stack-4{display:flex; flex-direction:column; gap:var(--space-4);}
+  .stack-6{display:flex; flex-direction:column; gap:var(--space-6);}
   .row-actions{display:flex; gap:var(--space-2); flex-wrap:wrap;}
+  .space-between{display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);}
+
+  /* Dashboard identity + ring block. */
+  .identity{display:flex; align-items:flex-start; gap:var(--space-4);}
+  .identity .who{flex:1; min-width:0; display:flex; flex-direction:column; gap:var(--space-1);}
+  .identity .who .name{font-family:var(--font-heading); font-weight:600; font-size:25px;
+    line-height:1.15; margin:0; overflow-wrap:break-word;}
+  .ring-wrap{position:relative; width:96px; height:96px; flex:none;}
+  .ring-wrap .ring-label{position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;}
+  .ring-wrap .pct{font-family:var(--font-heading); font-size:24px;
+    line-height:1; font-variant-numeric:tabular-nums;}
+  .ring-wrap .lbl{font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--neutral-600);}
+
+  /* Mastery bar (per strand). Track is flare-100 with a flare-200 outline;
+     the fill uses each strand's own color. */
+  .bar{display:flex; flex-direction:column; gap:6px;}
+  .bar .row-line{display:flex; align-items:baseline; gap:var(--space-2);}
+  .bar .row-line .lbl{flex:1; font-size:13px;}
+  .bar .row-line .val{font-size:12px; color:var(--neutral-700);
+    font-variant-numeric:tabular-nums;}
+  .bar .track{height:8px; background:var(--flare-100); border-radius:4px;
+    overflow:hidden; outline:1px solid var(--flare-200);}
+  .bar .fill{height:100%;}
+
+  /* Badges — 5-col grid, 10 slots. Cycles flare -> lagoon -> violet by index. */
+  .badges{display:grid; grid-template-columns:repeat(5,1fr); gap:var(--space-2);}
+  .badge{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .badge .chip{width:40px; height:40px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    color:#ffffff;}
+  .badge .lbl{font-size:10px; text-align:center; color:var(--neutral-800); line-height:1.2;}
+  .badge.locked .chip{background:transparent; border:1px dashed var(--neutral-400); color:var(--neutral-400);}
+  .badge.locked .lbl{color:var(--neutral-500);}
+  .badge-empty{padding:var(--space-4) var(--space-3);
+    border:1px dashed var(--neutral-400); border-radius:var(--radius-md);
+    display:flex; flex-direction:column; gap:var(--space-1);}
+
+  /* Secondary link row for Today (Browse / Free practice / History). */
+  .side-links{display:flex; flex-wrap:wrap; gap:var(--space-1);
+    padding-top:var(--space-3); border-top:1px solid var(--divider);}
+  .side-links button{padding:var(--space-2) var(--space-3);
+    background:none; border:none; color:var(--flare-800);
+    font-family:var(--font-heading); font-weight:600; font-size:13px;
+    cursor:pointer; border-radius:var(--radius-md);}
+  .side-links button:hover{background:rgba(242,98,31,0.08);}
 </style>
 </head>
 <body>
@@ -327,6 +375,16 @@ function gradeToLevel(g){ return GRADE_TO_LEVEL[g] || 13; }
 function gradeLabel(g){ return g === 1 ? "Grade 1" : "Grade " + g; }
 const WEEK_TIER={1:1,2:1,3:1,4:2,5:2,6:2,7:3,8:3,9:3,10:3};
 const MOCK_WEEKS={2:1,4:2,6:3,8:4,10:5};
+// Themed week titles per docs/DESIGN_SYSTEM.md (design handoff, screen 3).
+// Purely a label — doesn't affect sampling or scoring.
+const WEEK_TITLES = {
+  1:"Getting your bearings", 2:"Analogies and opposites", 3:"Number series",
+  4:"Figure matrices", 5:"Sentence completion", 6:"Quantitative relations",
+  7:"Paper folding", 8:"Mixed sets", 9:"Pace and stamina", 10:"Final rehearsal"
+};
+// Strand color tokens for consistent use in ring/bar fills, badges, and dots.
+const STRAND_COLOR = {verbal:"var(--flare-500)", quant:"var(--lagoon-500)", nonverbal:"var(--violet-500)"};
+const STRAND_ORDER = ["verbal","quant","nonverbal"];
 const DAYS=["mon","tue","wed","thu","fri","sat","sun"];
 const DAY_LABELS={mon:"Monday",tue:"Tuesday",wed:"Wednesday",thu:"Thursday",fri:"Friday",sat:"Saturday",sun:"Sunday"};
 
@@ -970,52 +1028,157 @@ function submitNewStudent(){
   S.addingStudent=false; CUR=id; S.view="dashboard"; render();
 }
 
-/* ---------- DASHBOARD ---------- */
+/* ---------- DASHBOARD ("Today") ---------- */
+// Ring circumference = 2 * pi * 42 ≈ 263.9. dasharray = (lessons/70 * 263.9) 263.9.
+function ringDash(lessons){
+  const c = 2 * Math.PI * 42;
+  const filled = (Math.min(70, Math.max(0, lessons)) / 70) * c;
+  return `${filled.toFixed(1)} ${c.toFixed(1)}`;
+}
+function currentWeekFromLessons(lessons){
+  return Math.min(10, Math.floor(lessons / 7) + 1);
+}
+function streakNoteFor(st){
+  const cur = (st.streak && st.streak.current) || 0;
+  const best = (st.streak && st.streak.longest) || 0;
+  if(cur > 0) return "Two rest days a week are fine; the streak only counts practice days.";
+  if(best > 0) return `The run ended. One lesson today starts a new one — the best run of ${best} day${best===1?"":"s"} stays on the record.`;
+  return "A streak starts with the first finished lesson.";
+}
 function dashboardHTML(){
-  const st=currentStudent();
-  const pct=Math.round(100*programCompletionCount(st)/70);
-  const acc=batteryAccuracy(st);
-  const nl=nextLesson(st);
-  const badges=computeBadges(st);
-  let html = `<div class="panel dash-top">
-    <div class="ring" style="background:conic-gradient(var(--forest) ${pct}%, #EAE3D3 0)">
-      <div class="inner"><b>${pct}%</b><span>program</span></div>
+  const st = currentStudent();
+  const lessons = programCompletionCount(st);
+  const pct = Math.round(100 * lessons / 70);
+  const week = currentWeekFromLessons(lessons);
+  const acc = batteryAccuracy(st);
+  const nl = nextLesson(st);
+  const badges = computeBadges(st);
+  const earnedCount = badges.filter(b=>b.earned).length;
+
+  const identity = `<div class="identity">
+    <div class="who">
+      <div class="caption-flare">Week ${week} of 10</div>
+      <h2 class="name">${st.name}</h2>
+      <div class="small tnum" style="color:var(--neutral-700);">${lessons} of 70 lessons finished · ${gradeLabel(st.grade||7)}</div>
     </div>
-    <div>
-      <h2 style="margin-bottom:6px;">Hi ${st.name} 👋</h2>
-      <span class="streakpill">🔥 ${st.streak.current||0}-day streak (best ${st.streak.longest||0})</span>
+    <div class="ring-wrap">
+      <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+        <circle cx="48" cy="48" r="42" fill="var(--flare-100)" stroke="var(--flare-200)" stroke-width="7"></circle>
+        <circle cx="48" cy="48" r="42" fill="none" stroke="var(--flare-500)" stroke-width="7" stroke-linecap="round"
+                stroke-dasharray="${ringDash(lessons)}" transform="rotate(-90 48 48)"></circle>
+      </svg>
+      <div class="ring-label">
+        <div class="pct">${pct}%</div>
+        <div class="lbl">Route</div>
+      </div>
     </div>
   </div>`;
-  if(nl){
-    const label = weekPlan(nl.week, st)[nl.day].label;
-    html += `<div class="cta"><strong>Continue: Week ${nl.week} · ${DAY_LABELS[nl.day]}</strong>
-      <p style="margin:6px 0;">${label}</p>
-      <button class="btn forest" onclick="S.openWeek=${nl.week};S.view='program';render();">Go to this lesson</button></div>`;
+
+  const streakCur = (st.streak && st.streak.current) || 0;
+  const streakBest = (st.streak && st.streak.longest) || 0;
+  const streakStroke = streakCur > 0 ? "var(--flare)" : "var(--neutral-500)";
+  const streakPanel = `<div class="panel panel-tinted">
+    <div class="space-between">
+      <span style="display:inline-flex; align-items:center; gap:var(--space-2);">
+        ${ICON("flame",{size:18,color:streakStroke})}
+        <span class="figure" style="font-size:20px;">${streakCur} day${streakCur===1?"":"s"} in a row</span>
+      </span>
+      <span class="small tnum" style="color:var(--neutral-700);">best ${streakBest}</span>
+    </div>
+    <div class="note">${streakNoteFor(st)}</div>
+  </div>`;
+
+  const strandsBlock = `<div class="stack-3">
+    <div class="caption">Reasoning strands</div>
+    ${STRAND_ORDER.map(b=>{
+      const p = acc[b].n>0 ? Math.round(100*acc[b].c/acc[b].n) : 0;
+      const valText = acc[b].n>0 ? `${p}%` : "not measured";
+      return `<div class="bar">
+        <div class="row-line">
+          <span class="lbl">${BLABEL[b]} reasoning</span>
+          <span class="val">${valText}</span>
+        </div>
+        <div class="track"><div class="fill" style="width:${p}%; background:${STRAND_COLOR[b]};"></div></div>
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  let badgesBlock;
+  if(earnedCount === 0){
+    badgesBlock = `<div class="stack-3">
+      <div class="space-between">
+        <span class="caption" style="flex:1;">Badges</span>
+        <span class="small tnum" style="color:var(--neutral-700);">0 of ${badges.length}</span>
+      </div>
+      <div class="badge-empty">
+        <div class="subhead">Nothing earned yet</div>
+        <div class="note">The first badge comes after three days in a row. Ten to collect over the route.</div>
+      </div>
+    </div>`;
   } else {
-    html += `<div class="cta"><strong>🎉 Program complete!</strong>
-      <p style="margin:6px 0;">All 10 weeks done. Keep sharp with free practice or ask a parent for another mock.</p></div>`;
+    badgesBlock = `<div class="stack-3">
+      <div class="space-between">
+        <span class="caption" style="flex:1;">Badges</span>
+        <span class="small tnum" style="color:var(--neutral-700);">${earnedCount} of ${badges.length}</span>
+      </div>
+      <div class="badges">
+        ${badges.map((b,i)=>{
+          const strand = STRAND_ORDER[i % STRAND_ORDER.length];
+          const chipStyle = b.earned
+            ? `background:${STRAND_COLOR[strand]};`
+            : ``;
+          return `<div class="badge ${b.earned?"":"locked"}">
+            <div class="chip" style="${chipStyle}">${ICON("award",{size:16})}</div>
+            <div class="lbl">${b.label}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
   }
-  html += `<div class="panel"><h3>Mastery by battery</h3>`;
-  ["verbal","quant","nonverbal"].forEach(b=>{
-    const p = acc[b].n>0 ? Math.round(100*acc[b].c/acc[b].n) : 0;
-    html += `<div class="barrow"><div class="lbl">${BLABEL[b]}</div>
-      <div class="track"><div class="fill" style="width:${p}%"></div></div>
-      <div>${acc[b].n>0? p+"%":"—"}</div></div>`;
-  });
-  html += `</div>`;
-  html += `<div class="panel"><h3>Badges</h3><div class="badge-row">`;
-  badges.forEach(b=>{ html += `<div class="badge-chip ${b.earned?'earned':'locked'}">${b.earned?'★ ':''}${b.label}</div>`; });
-  html += `</div></div>`;
-  html += `<div class="panel"><div class="grid3">
-    <div class="choice" onclick="S.view='program';render();"><h3>Learning path</h3><p>10-week guided program</p></div>
-    <div class="choice" onclick="S.view='practice-battery';render();"><h3>Free practice</h3><p>Pick any battery/tier to drill — 10 fresh, randomly chosen questions each time</p></div>
-    <div class="choice" onclick="S.browseData=null;S.view='browse-list';render();"><h3>Browse material</h3><p>Read all 12 questions per topic with answers shown</p></div>
-  </div></div>`;
-  html += `<div class="panel"><div class="btnbar">
-    <button class="btn secondary" onclick="S.view='progress';render();">My history</button>
-    <button class="btn secondary" onclick="S.view='leaderboard';render();">Leaderboard</button>
-  </div></div>`;
-  return html;
+
+  const sideLinks = `<div class="side-links">
+    <button onclick="S.view='progress';render();">My history</button>
+    <button onclick="S.view='practice-battery';render();">Free practice</button>
+    <button onclick="S.browseData=null;S.view='browse-list';render();">Browse material</button>
+  </div>`;
+
+  // Sticky CTA. Copy adapts to state: brand-new -> "Begin the route",
+  // otherwise -> "Continue where you left off". Route-complete -> a
+  // congratulatory secondary layout without the button.
+  let cta;
+  if(nl){
+    const isFresh = lessons === 0;
+    const wkTitle = WEEK_TITLES[nl.week] || `Week ${nl.week}`;
+    const label = isFresh ? "Begin the route" : "Continue where you left off";
+    cta = `<div class="sticky-bar">
+      <div class="space-between">
+        <span class="small" style="color:var(--neutral-700);">Week ${nl.week} · ${wkTitle}</span>
+        <span class="small tnum" style="color:var(--neutral-700);">~12 min</span>
+      </div>
+      <button class="btn btn-primary btn-cta btn-block" onclick="jumpToNextLesson()">${label}</button>
+    </div>`;
+  } else {
+    cta = `<div class="sticky-bar">
+      <div class="small" style="color:var(--neutral-700);">Route complete. Keep sharp with free practice or ask a parent for another mock.</div>
+    </div>`;
+  }
+
+  return `<div class="stack-6">
+    ${identity}
+    ${streakPanel}
+    ${strandsBlock}
+    ${badgesBlock}
+    ${sideLinks}
+  </div>
+  ${cta}`;
+}
+function jumpToNextLesson(){
+  const st = currentStudent();
+  const nl = nextLesson(st);
+  if(!nl){ S.view = "program"; render(); return; }
+  S.openWeek = nl.week;
+  S.view = "program";
+  render();
 }
 
 /* ---------- PROGRAM (10-week path) ---------- */
