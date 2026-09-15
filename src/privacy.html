@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiCap Prep — Privacy Policy</title>
+<style>
+  :root{--ink:#1D2B3A;--paper:#FBF8F2;--line:#D9D2C2;--forest:#3B6E5E;
+    --muted:#6B6458;--white:#FFFFFF;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.55;}
+  .shell{max-width:720px;margin:0 auto;padding:0 20px 60px;}
+  h1,h2,h3{font-family:Georgia,"Source Serif Pro",serif;font-weight:600;margin:1.4em 0 .3em;}
+  h1{font-size:1.7rem;margin-top:.3em;}
+  h2{font-size:1.2rem;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  h3{font-size:1rem;}
+  header.top{border-bottom:2px solid var(--ink);padding:18px 0 14px;margin-bottom:6px;
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  header.top .brand{display:flex;flex-direction:column;}
+  header.top h1{font-size:1.35rem;letter-spacing:.2px;margin:0;}
+  header.top .tag{color:var(--muted);font-size:.8rem;}
+  header.top a{color:var(--forest);text-decoration:none;font-size:.85rem;}
+  header.top a:hover{text-decoration:underline;}
+  .meta{color:var(--muted);font-size:.85rem;}
+  ul{padding-left:1.4em;}
+  li{margin:.3em 0;}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:16px 0;color:var(--muted);
+    font-size:.8rem;line-height:1.5;}
+  footer a{color:var(--forest);}
+  .callout{background:#F1ECE0;border-left:3px solid var(--forest);padding:10px 14px;
+    border-radius:2px;margin:14px 0;font-size:.92rem;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><h1>HiCap Prep</h1><div class="tag">Privacy Policy</div></div>
+    <a href="app.html">← Back to the app</a>
+  </header>
+
+  <p class="meta">Last updated: September 14, 2026.</p>
+
+  <p>This policy explains exactly what HiCap Prep stores about the parent
+    who signs up and about the kids whose CogAT practice is tracked. It's
+    written specifically for this app, not copied from a template — if
+    something below no longer matches how the app behaves, that's a bug
+    to file, not a feature we're hiding.</p>
+
+  <div class="callout">
+    <strong>Short version.</strong> One parent account per family. The only
+    thing we store about a kid is a first name, an emoji avatar, their
+    grade level, and their quiz history on this app. Nothing about your
+    kid ever leaves your family's private data unless you export it
+    yourself. You can delete everything from Parent Settings at any time.
+  </div>
+
+  <h2>1. What we collect</h2>
+
+  <h3>1.1 About the parent (the account holder)</h3>
+  <ul>
+    <li>Email address (required to sign in).</li>
+    <li>A hashed parent PIN — the digits are never sent to us; only a
+      one-way PBKDF2 hash is stored, and the check runs entirely on our
+      server.</li>
+    <li>Timestamps for sign-up, last sign-in, and the parental-consent
+      confirmation described in §5.</li>
+  </ul>
+
+  <h3>1.2 About each child on the roster</h3>
+  <ul>
+    <li>A first name (or nickname — whatever the parent types in).</li>
+    <li>An emoji avatar the parent picks from a fixed list.</li>
+    <li>A US grade level (1 or 3–11) and its matching CogAT level.</li>
+    <li>The child's practice history on this app: which sessions they
+      completed, how many questions they got right, which questions they
+      missed, their current streak, and any badges they've earned.</li>
+  </ul>
+
+  <p>We do not ask for or store: the child's last name, date of birth,
+    home address, phone number, school, photograph, voice, or any real-world
+    identifier beyond the first name the parent chose.</p>
+
+  <h2>2. What we do <em>not</em> collect</h2>
+  <ul>
+    <li>No advertising or third-party analytics trackers. There is no
+      Google Analytics, Facebook pixel, ad-network SDK, or session
+      replay of any kind on this app.</li>
+    <li>No location data.</li>
+    <li>No cookies used for tracking — the only browser storage in use
+      is the Supabase Auth session token and (in local-only mode) a
+      cached copy of the family's roster so the app still works without a
+      network connection.</li>
+    <li>No device fingerprinting.</li>
+  </ul>
+
+  <h2>3. Who can see this data</h2>
+  <ul>
+    <li>The parent who owns the account, when signed in.</li>
+    <li>Our database at Supabase enforces this at the row level: every
+      row (families, students, attempts, badges) is tagged with the
+      family's owner, and the database refuses to return rows to any
+      request that isn't from that owner's signed-in session.</li>
+    <li>The HiCap Prep operator (this app's maintainer) has technical
+      access to the database for maintenance and support, and will only
+      look at a specific family's data if you email us and ask for help
+      with your account.</li>
+  </ul>
+
+  <p>We do not sell or share the data with anyone else. There are no
+    ad networks or "data partners" in our stack.</p>
+
+  <h2>4. Third-party service providers</h2>
+  <p>The app is built on top of these services. Each one processes only
+    what it needs to do its job, and each one has been chosen because it
+    has a clear commitment to not sell customer data:</p>
+  <ul>
+    <li><strong>Supabase</strong> — hosts the database and the sign-in
+      system. See supabase.com/privacy.</li>
+    <li><strong>Stripe</strong> (when paid features ship) — processes
+      payments for the seasonal Family Pass. Stripe receives the parent's
+      email and payment details; it never receives any information about
+      the kids or their quiz history.</li>
+  </ul>
+
+  <h2>5. Parental consent (COPPA)</h2>
+  <p>HiCap Prep is designed for use by kids under 13 with a parent
+    involved. Because of that, we require the parent to explicitly consent
+    to their child's data being collected as described here, before any
+    child data is entered. The consent step is a checkbox shown after
+    sign-up and its timestamp is stored on the family's account row.</p>
+  <p>The parent can withdraw consent at any time by deleting the account
+    (see §7), which erases every row belonging to that family from our
+    systems.</p>
+
+  <h2>6. Data retention</h2>
+  <p>Family data stays on our systems as long as the family is actively
+    using the app. If a family's account has been inactive (no sign-in and
+    no practice sessions) for <strong>18 months</strong>, we mark the
+    account for deletion and — once we've integrated email notifications
+    — will send a warning to the parent's email at least 60 days before
+    the deletion runs. Deletion is a hard delete: every row belonging to
+    the family, including the parent's auth account, is removed.</p>
+
+  <h2>7. Deleting your family's data</h2>
+  <p>Sign in as the parent → Parent area → Settings → "Delete my family's
+    account". Deletion is immediate and permanent — there is no soft
+    delete, no 30-day grace period, and no way for us to bring it back.
+    That's deliberate; when you ask for the data to be gone, it's gone.</p>
+
+  <h2>8. Exporting your family's data</h2>
+  <p>Sign in as the parent → Parent area → Settings → "Download JSON" or
+    "Download CSV". The JSON export includes every field we have on your
+    family (except password hashes and auth tokens). The CSV export is
+    a spreadsheet-friendly row per practice session.</p>
+
+  <h2>9. Changes to this policy</h2>
+  <p>If we materially change what data is collected or who can see it,
+    we will update the "Last updated" date at the top of this page and
+    surface a notice inside the app the next time you sign in. Cosmetic
+    edits (fixing a typo, reformatting) may happen silently.</p>
+
+  <h2>10. Contact</h2>
+  <p>Questions or requests about your family's data: email the address
+    listed on the app's landing page, or open an issue on the app's
+    public repository if one is linked from that page.</p>
+
+  <footer>
+    <p><strong>Not affiliated.</strong> HiCap Prep is not affiliated with,
+      endorsed by, or sponsored by Riverside Insights or the makers of
+      CogAT&reg;. CogAT is a registered trademark of Riverside Insights;
+      references to CogAT are strictly nominative — this is a
+      third-party practice tool.</p>
+    <p><a href="app.html">Back to the app</a></p>
+  </footer>
+</div>
+</body>
+</html>

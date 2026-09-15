@@ -145,6 +145,11 @@
   .modal-box{background:var(--white);border:1px solid var(--ink);border-radius:4px;padding:22px;
     max-width:380px;width:100%;}
   .modal-box p{margin:0 0 12px;}
+  footer.legal{border-top:1px solid var(--line);margin:40px 0 0;padding:16px 0;color:var(--muted);
+    font-size:.78rem;line-height:1.5;}
+  footer.legal a{color:var(--forest);text-decoration:none;}
+  footer.legal a:hover{text-decoration:underline;}
+  footer.legal .disclaimer{margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -488,8 +493,14 @@ function submitRunner(auto){
    ========================================================= */
 function render(){
   const app=document.getElementById("app");
-  app.innerHTML = headerHTML() + bodyHTML() + modalHTML();
+  app.innerHTML = headerHTML() + bodyHTML() + modalHTML() + legalFooterHTML();
   if(typeof window!=="undefined"){ window.APP=APP; window.S=S; window.CUR=CUR; window.MODAL=MODAL; } // debug mirror
+}
+function legalFooterHTML(){
+  return `<footer class="legal">
+    <div class="disclaimer">HiCap Prep is not affiliated with, endorsed by, or sponsored by Riverside Insights or the makers of CogAT&reg;. CogAT is a registered trademark of Riverside Insights; references here are strictly nominative.</div>
+    <div><a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a></div>
+  </footer>`;
 }
 function headerHTML(){
   const student=currentStudent();
