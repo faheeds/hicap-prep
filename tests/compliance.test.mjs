@@ -9,6 +9,7 @@ import { JSDOM } from "jsdom";
 const APP_PATH = new URL("../src/app.html", import.meta.url);
 const PRIVACY_PATH = new URL("../src/privacy.html", import.meta.url);
 const TERMS_PATH = new URL("../src/terms.html", import.meta.url);
+const LANDING_PATH = new URL("../src/landing.html", import.meta.url);
 
 let dom, window, doc;
 
@@ -77,10 +78,48 @@ test("E2-4: the 'not affiliated' disclaimer is present on every public surface",
     new URL("../src/app.html", import.meta.url),
     new URL("../src/privacy.html", import.meta.url),
     new URL("../src/terms.html", import.meta.url),
+    new URL("../src/landing.html", import.meta.url),
     new URL("../README.md", import.meta.url),
   ];
   for (const f of filesRequiringDisclaimer) {
     const body = readFileSync(f, "utf-8");
     assert.match(body, disclaimer, `${f.pathname} mentions CogAT but is missing the disclaimer`);
   }
+});
+
+test("E4-1: src/landing.html exists, matches the design system, and links to the sign-up flow", () => {
+  assert.ok(existsSync(LANDING_PATH), "src/landing.html should exist");
+  const html = readFileSync(LANDING_PATH, "utf-8");
+
+  // Design-system compliance: uses the same tokens as src/app.html.
+  assert.match(html, /--flare:#f2621f/, "must define --flare per design system");
+  assert.match(html, /--font-heading:"Cormorant Garamond"/, "must use Cormorant Garamond heading font");
+  assert.match(html, /--font-body:"Lora"/, "must use Lora body font");
+  assert.match(html, /class="app-header"/, "must reuse the app-header shell");
+  assert.match(html, /class="wordmark">HiCap Prep/, "must show the HiCap Prep wordmark");
+
+  // Copy blocks the row's acceptance criteria calls out.
+  assert.match(html, /Ten weeks\. One kid at a time, or the whole house\./);
+  assert.match(html, /Why we built it/);
+  assert.match(html, /Four things it does that a workbook can't/);
+  assert.match(html, /Get started free/);
+
+  // Primary + closing CTA both link to the app's sign-up flow.
+  const ctaLinks = html.match(/href="app\.html#signup"/g) || [];
+  assert.ok(ctaLinks.length >= 2, `expected 2+ CTA links to app.html#signup, saw ${ctaLinks.length}`);
+
+  // Epic 3 (payments) hasn't shipped — the landing must not name a price
+  // or list a pricing plan yet, per the row's constraint.
+  assert.doesNotMatch(html, /\$\d/, "no dollar prices while Epic 3 is unshipped");
+  assert.doesNotMatch(html, /\b(monthly|annual|per month|per year|billed)\b/i, "no billing language yet");
+});
+
+test("E4-1: app.html#signup deep-link opens the auth gate in sign-up mode", () => {
+  // Read the app.html source and confirm the AUTH_UI initial state is
+  // wired to the hash. Full round-trip through jsdom would need a fake
+  // Supabase (auth gate only appears in cloud mode); the source check is
+  // the tight guarantee that matches this handler's job.
+  const src = readFileSync(APP_PATH, "utf-8");
+  assert.match(src, /let AUTH_UI = \{mode:\s*\(typeof location[^)]*location\.hash === "#signup"\)\s*\?\s*"signup"\s*:\s*"signin"/,
+    "AUTH_UI initial mode must read location.hash === '#signup' so the landing-page CTA lands on the sign-up form");
 });

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiCap Prep — a 10-week CogAT practice program for the whole family</title>
+<meta name="description" content="Structured, day-by-day CogAT practice for gifted-program admissions testing. Ten weeks, seventy short lessons, one login for every kid on the roster.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
+<style>
+  /* Design tokens — mirrors src/app.html (see docs/DESIGN_SYSTEM.md).
+     Kept inline rather than in a shared stylesheet so the site keeps its
+     no-build-step architecture. */
+  :root{
+    --bg:#fffdf9; --surface:#fff0e3; --ink:#1d1b2e; --divider:#e4d9cc;
+    --flare:#f2621f;
+    --flare-100:#fff1e6; --flare-200:#ffd7b8; --flare-300:#ffb075; --flare-400:#fb8640;
+    --flare-500:#f2621f; --flare-600:#d9470b; --flare-700:#ad3506; --flare-800:#7d2504;
+    --neutral-100:#fbf7f2; --neutral-200:#f2ebe2; --neutral-300:#e2d7c9; --neutral-400:#c4b6a6;
+    --neutral-500:#9d8f80; --neutral-600:#7c6f62; --neutral-700:#5d5245; --neutral-800:#3b3345;
+    --neutral-900:#231f37;
+    --space-1:4.6px; --space-2:9.2px; --space-3:13.8px; --space-4:18.4px;
+    --space-6:27.6px; --space-8:36.8px;
+    --radius-sm:2px; --radius-md:4px; --radius-lg:7px;
+    --shadow-md:0 3px 10px rgba(45,43,43,0.16);
+    --font-heading:"Cormorant Garamond", Georgia, "Source Serif Pro", serif;
+    --font-body:"Lora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    font-size:15px; line-height:1.55;}
+  h1,h2,h3{font-family:var(--font-heading); font-weight:600; margin:0;}
+  a{color:var(--flare-800);}
+
+  /* Shell — matches src/app.html: capped at 520px, centered, hairline sides. */
+  .shell{max-width:520px; margin:0 auto; min-height:100vh;
+    display:flex; flex-direction:column;
+    border-left:1px solid var(--divider); border-right:1px solid var(--divider);
+    background:var(--bg);}
+
+  /* Header bar — same treatment as src/app.html but without the student
+     chip or lock icon (no session on the landing page). */
+  .app-header{display:flex; align-items:center; gap:var(--space-3);
+    padding:var(--space-3) var(--space-4);
+    background:var(--ink); color:var(--neutral-100);
+    border-bottom:1px solid var(--flare-800);}
+  .app-header .wordmark{font-family:var(--font-heading); font-weight:600; font-size:16px;
+    letter-spacing:0.01em; color:var(--flare-300); white-space:nowrap;}
+  .app-header .tag{color:var(--neutral-100); opacity:0.7; font-size:12px;
+    margin-left:auto; text-align:right;}
+
+  main.view{padding:var(--space-4); display:flex; flex-direction:column; gap:var(--space-8);
+    flex:1;}
+  section.stack{display:flex; flex-direction:column; gap:var(--space-3);}
+
+  /* Type helpers — kept in step with src/app.html so buttons and headings
+     render identically across the two surfaces. */
+  .display{font-family:var(--font-heading); font-weight:400; font-size:38px;
+    letter-spacing:-0.02em; line-height:1.1; margin:0;}
+  .heading{font-family:var(--font-heading); font-weight:600; font-size:25px;
+    line-height:1.15; margin:0;}
+  .subhead{font-family:var(--font-heading); font-weight:600; font-size:17px;
+    line-height:1.2; margin:0;}
+  .caption-flare{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--flare-700);}
+  .small{font-size:13px;}
+  .body-muted{color:var(--neutral-800); line-height:1.6;}
+
+  /* Buttons — outlined per design spec, no solid fills. */
+  .btn{display:inline-flex; align-items:center; justify-content:center;
+    gap:var(--space-2);
+    min-height:44px; padding:0 var(--space-4);
+    border-radius:var(--radius-md);
+    font-family:var(--font-heading); font-weight:600; font-size:14px;
+    background:transparent; cursor:pointer; text-decoration:none;
+    transition:background 0.12s ease;}
+  .btn-primary{border:1px solid var(--flare); color:var(--flare-800);}
+  .btn-primary:hover{background:rgba(242,98,31,0.12);}
+  .btn-cta{min-height:48px; font-size:15px;}
+  .btn:focus-visible{outline:2px solid var(--flare); outline-offset:2px;}
+
+  /* Feature-block list — 4 panels, stacked at phone size (the design
+     brief's primary target). Each block is a bordered card with a subhead
+     and a body line. */
+  .feature-list{display:flex; flex-direction:column; gap:var(--space-3);}
+  .feature-panel{border:1px solid var(--divider); border-radius:var(--radius-md);
+    padding:var(--space-3);
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  .feature-panel .subhead{color:var(--ink);}
+  .feature-panel .body{font-size:14px; line-height:1.55; color:var(--neutral-800);}
+
+  /* Trust block — tinted panel per the design token pattern. */
+  .trust{background:var(--flare-100); border:1px solid var(--flare-300);
+    border-radius:var(--radius-md);
+    padding:var(--space-3);
+    font-size:14px; line-height:1.6; color:var(--neutral-800);}
+
+  /* Closing CTA — centered, small kicker + big button. */
+  .closing{display:flex; flex-direction:column; align-items:center;
+    gap:var(--space-3); text-align:center;
+    padding:var(--space-6) 0;}
+
+  /* Legal footer — same shape as src/app.html's legalFooterHTML(), including
+     the E2-4 disclaimer. */
+  footer.legal{padding:var(--space-4);
+    border-top:1px solid var(--divider);
+    color:var(--neutral-700); font-size:11px; line-height:1.6;
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  footer.legal a{color:var(--flare-800); text-decoration:none;}
+  footer.legal a:hover{text-decoration:underline;}
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="app-header">
+    <span class="wordmark">HiCap Prep</span>
+    <span class="tag">CogAT practice for the whole family</span>
+  </header>
+
+  <main class="view">
+    <!-- HERO -->
+    <section class="stack" aria-labelledby="hero-h">
+      <h1 id="hero-h" class="display">Ten weeks. One kid at a time, or the whole house.</h1>
+      <p class="body-muted">A structured, day-by-day practice program for CogAT — the cognitive abilities test most districts use for gifted and advanced-learning placement. Built around a real 10-week testing calendar, not a pile of worksheets to figure out on your own.</p>
+      <div><a class="btn btn-primary btn-cta" href="app.html#signup">Get started</a></div>
+    </section>
+
+    <!-- PROBLEM -->
+    <section class="stack" aria-labelledby="why-h">
+      <h2 id="why-h" class="heading">Why we built it</h2>
+      <p class="body-muted">Most families prepping for a gifted-program test end up with one of two things: an expensive tutor, or a stack of static worksheets that repeat the same questions every time. Neither tells you what to do today, and neither adjusts when your kid gets faster than the material.</p>
+    </section>
+
+    <!-- HOW IT WORKS - 4 blocks -->
+    <section class="stack" aria-labelledby="how-h">
+      <div class="caption-flare">How it actually works</div>
+      <h2 id="how-h" class="heading">Four things it does that a workbook can't</h2>
+      <div class="feature-list">
+        <div class="feature-panel">
+          <div class="subhead">A real day-by-day plan</div>
+          <div class="body">Ten weeks, seventy short lessons, mapped to when your district actually tests — not a random question generator.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">Never the same set twice</div>
+          <div class="body">Hundreds of questions per topic, drawn fresh every session, so your kid is reasoning through it, not remembering it from last week.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">One login, every kid</div>
+          <div class="body">Add each child to the family roster and track their own pace, streak, and progress separately.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">You run the mock tests</div>
+          <div class="body">Timed practice exams are parent-started, with a visible countdown — nobody sits a full mock by accident.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUST -->
+    <section aria-label="Independent practice material notice">
+      <div class="trust">
+        This is independent practice material. HiCap Prep is not affiliated with or endorsed by Riverside Insights or CogAT. We built this because our own family was going through the same admissions process — <a href="privacy.html">see our approach to your child's data →</a>.
+      </div>
+    </section>
+
+    <!-- CLOSING CTA -->
+    <section class="closing">
+      <p class="small" style="color:var(--neutral-700); max-width:34ch;">Currently built for Grade 7 (CogAT Level 13), with more grade levels on the way.</p>
+      <a class="btn btn-primary btn-cta" href="app.html#signup">Get started free</a>
+    </section>
+  </main>
+
+  <footer class="legal">
+    <div>HiCap Prep is not affiliated with, endorsed by, or sponsored by Riverside Insights or the makers of CogAT&reg;. CogAT is a registered trademark of Riverside Insights; references here are strictly nominative.</div>
+    <div><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a></div>
+  </footer>
+</div>
+</body>
+</html>

@@ -817,7 +817,13 @@ function currentUserEmail(){ const u = AUTH && AUTH.currentUser(); return u ? u.
 // the consent to authorize. The gate sits between the auth screen and the
 // roster so no child data can be entered before the parent has consented.
 function needsConsentGate(){ return CLOUD && AUTH && AUTH.isAuthenticated() && !APP.consentedAt; }
-let AUTH_UI = {mode:"signin", email:"", info:"", err:"", busy:false};
+// Auth screen state. Deep-link support: /app.html#signup opens the gate
+// pre-set to sign-up mode instead of the default sign-in — used by the
+// landing page's primary CTA so a first-time visitor doesn't land on
+// "sign in" and have to hunt for the sign-up switch. Harmless in local
+// mode: the auth gate never renders there, and this state is inert.
+let AUTH_UI = {mode: (typeof location !== "undefined" && location.hash === "#signup") ? "signup" : "signin",
+  email:"", info:"", err:"", busy:false};
 let CONSENT_UI = {parentBox:false, policyBox:false, err:"", busy:false};
 
 /* =========================================================
