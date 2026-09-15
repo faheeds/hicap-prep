@@ -58,6 +58,29 @@ test("question bank: every subtest/tier pool has 20 questions", () => {
   }
 });
 
+test("nonverbal PF Tier 1 is a shape bank — real SVG figures on every question, not text", () => {
+  // Pilot contract: DRILLS.nonverbal[1].PF was replaced at load time with
+  // real diagrammed Paper Folding items whose stems and options carry
+  // inline SVG. Other nonverbal pools (PF Tiers 2/3, FM, FC across all
+  // tiers) intentionally stay text-based until the pilot is reviewed.
+  const pool = window.DRILLS.nonverbal[1].PF;
+  assert.equal(pool.length, 20, "PF Tier 1 should have 20 questions");
+  for (const q of pool) {
+    assert.match(q.q, /<svg\b/, "PF T1 stem must be inline SVG");
+    assert.match(q.q, /stroke-dasharray/, "PF T1 stem must include the dashed fold line");
+    assert.equal(q.o.length, 4, "must have 4 options");
+    for (const opt of q.o) {
+      assert.match(opt, /^<svg\b/, "every PF T1 option must be an inline SVG shape");
+    }
+    assert.ok(q.a >= 0 && q.a <= 3);
+  }
+  // Everything else nonverbal is still text (pilot deliberately scoped).
+  for (const t of [2, 3]) {
+    const stillText = window.DRILLS.nonverbal[t].PF[0].q;
+    assert.doesNotMatch(stillText, /^<svg/, `PF Tier ${t} should be untouched by the pilot`);
+  }
+});
+
 test("question bank: every item has structurally valid answer data", () => {
   for (const battery of Object.keys(window.DRILLS)) {
     for (const tier of Object.keys(window.DRILLS[battery])) {

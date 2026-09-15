@@ -378,6 +378,23 @@
   .quiz-progress-fill{height:100%; background:var(--flare-500);
     transition:width 0.15s ease;}
 
+  /* Nonverbal / spatial — 4-column grid of aspect-1 tiles per design
+     screen 4. Only used when a question's options are inline SVG shapes. */
+  .opts-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:var(--space-2);}
+  .opt-tile{aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    padding:var(--space-2); background:transparent; cursor:pointer;
+    border:1px solid var(--divider); border-radius:var(--radius-md);}
+  .opt-tile:hover:not(.selected){background:rgba(242,98,31,0.06);}
+  .opt-tile.selected{background:var(--flare-100); border-color:var(--flare);
+    box-shadow:inset 0 0 0 1px var(--flare);}
+  .opt-tile svg{width:100%; height:auto; max-width:80px; display:block;}
+  /* Paper Folding stem — centered on a surface panel per design's
+     "centered surface panel with 1px divider border" spec. */
+  .pf-stem{display:flex; justify-content:center;
+    padding:var(--space-3); background:var(--surface);
+    border:1px solid var(--divider); border-radius:var(--radius-md);}
+  .pf-stem svg{max-width:180px; width:60%; height:auto; display:block;}
+
   /* Results — score block, strand rows, per-question breakdown. */
   .score-block{display:flex; flex-direction:column; gap:var(--space-2);}
   .score-figure{display:flex; align-items:baseline; gap:var(--space-2);}
@@ -506,6 +523,97 @@ const SLABEL={SC:"Sentence Completion",VC:"Verbal Classification",VA:"Verbal Ana
 const BSUB={verbal:["SC","VC","VA"],quant:["NS","NP","NA"],nonverbal:["FC","FM","PF"]};
 const SUB_TO_BATTERY={SC:"verbal",VC:"verbal",VA:"verbal",NS:"quant",NP:"quant",NA:"quant",
   FC:"nonverbal",FM:"nonverbal",PF:"nonverbal"};
+
+/* =========================================================
+   PAPER FOLDING (nonverbal / PF) — Tier 1 pilot rebuild.
+   =========================================================
+   Real CogAT Paper Folding items show a folded square with dashed
+   fold line(s) and a punched hole; the student picks the option
+   diagramming the paper when unfolded. The pre-pilot bank stored
+   text-only questions ("How many holes when unfolded?"), which
+   both undershot the design spec (§Assets requires inline SVG
+   geometric figures) and read as too-easy vs. real Level-13 PF
+   items.
+   This block builds ONLY Tier 1 (20 questions) as real diagrammed
+   SVG, replacing DRILLS.nonverbal[1].PF at load time. Same
+   {q, o, a, e} data shape — the strings now carry SVG. Every other
+   pool (Tiers 2/3, FM, FC across all tiers) is untouched until this
+   pilot is reviewed. */
+const PF_INK = "#1d1b2e";
+const PF_DOT = "#f2621f";
+function pfSvgSquare(){ return `<rect x="10" y="10" width="100" height="100" fill="none" stroke="${PF_INK}" stroke-width="2"/>`; }
+function pfSvgFoldLine(fold){
+  if(fold === "v") return `<line x1="60" y1="10" x2="60" y2="110" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(fold === "h") return `<line x1="10" y1="60" x2="110" y2="60" stroke="${PF_INK}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  return "";
+}
+function pfSvgDot(pt){ return `<circle cx="${pt.x}" cy="${pt.y}" r="5" fill="${PF_DOT}"/>`; }
+function pfStemSVG(fold, dot){
+  return `<svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Folded square with one hole punched">${pfSvgSquare()}${pfSvgFoldLine(fold)}${pfSvgDot(dot)}</svg>`;
+}
+function pfOptionSVG(dots){
+  return `<svg viewBox="0 0 120 120" width="80" height="80" role="img" aria-label="Unfolded square with ${dots.length} hole${dots.length===1?"":"s"}">${pfSvgSquare()}${dots.map(pfSvgDot).join("")}</svg>`;
+}
+function pfMirror(pt, fold){
+  if(fold === "v") return {x: 120 - pt.x, y: pt.y};
+  if(fold === "h") return {x: pt.x, y: 120 - pt.y};
+  return pt;
+}
+function pfDedupe(pts){
+  const seen = new Set(); const out = [];
+  for(const p of pts){ const k = p.x+","+p.y; if(!seen.has(k)){ seen.add(k); out.push(p); } }
+  return out;
+}
+function pfBuildTier1(){
+  // Twenty configs — pure center folds (vertical + horizontal), varying the
+  // punch position so distractors stay plausible. Off-center folds and
+  // multi-fold items are Tier 2/3 material.
+  const configs = [
+    {f:"v", d:{x:85,y:25}}, {f:"v", d:{x:95,y:60}}, {f:"v", d:{x:85,y:95}},
+    {f:"v", d:{x:78,y:22}}, {f:"v", d:{x:95,y:40}}, {f:"v", d:{x:85,y:80}},
+    {f:"v", d:{x:100,y:100}}, {f:"v", d:{x:90,y:35}}, {f:"v", d:{x:75,y:30}},
+    {f:"v", d:{x:100,y:60}},
+    {f:"h", d:{x:25,y:30}}, {f:"h", d:{x:60,y:25}}, {f:"h", d:{x:90,y:25}},
+    {f:"h", d:{x:20,y:20}}, {f:"h", d:{x:30,y:45}}, {f:"h", d:{x:60,y:45}},
+    {f:"h", d:{x:95,y:30}}, {f:"h", d:{x:100,y:20}}, {f:"h", d:{x:55,y:30}},
+    {f:"h", d:{x:35,y:25}},
+  ];
+  return configs.map((c, idx) => {
+    const correct = pfDedupe([c.d, pfMirror(c.d, c.f)]);
+    // Distractor 1: only the visible punch — student forgot the paper unfolds.
+    const dis1 = [c.d];
+    // Distractor 2: mirror across the WRONG axis — used the other fold
+    // direction. This is the most common student mistake, per real
+    // Level-13 experience.
+    const wrongFold = c.f === "v" ? "h" : "v";
+    const dis2 = pfDedupe([c.d, pfMirror(c.d, wrongFold)]);
+    // Distractor 3: 180-degree rotation from the punch — "diagonal" wrong
+    // that plausibly comes from mirroring on both axes.
+    const dis3 = pfDedupe([c.d, {x: 120 - c.d.x, y: 120 - c.d.y}]);
+
+    // Rotate so correct-answer index cycles evenly across 0..3.
+    const raw = [dis1, correct, dis2, dis3];
+    const rot = idx % 4;
+    const rotated = raw.slice(rot).concat(raw.slice(0, rot));
+    const correctPosition = (1 - rot + 4) % 4;
+
+    const foldName = c.f === "v" ? "vertical" : "horizontal";
+    const mirrorAxis = c.f === "v" ? "left-right" : "top-and-bottom";
+    return {
+      q: `<div class="pf-stem">${pfStemSVG(c.f, c.d)}</div><p class="qtext">The square is folded once along the dashed ${foldName} line, and a hole is punched through both layers. Which square shows what the paper looks like when unfolded?</p>`,
+      o: rotated.map(pfOptionSVG),
+      a: correctPosition,
+      e: `A single ${foldName} fold puts the two halves on top of each other, so one punch makes two holes when the paper is unfolded: one at the original spot and one at its mirror across the fold line. The mirror runs ${mirrorAxis}.`
+    };
+  });
+}
+DRILLS.nonverbal[1].PF = pfBuildTier1();
+// isShapeOptions(o) — true when a question's options are inline-SVG shapes
+// rather than text. Consumed by the quiz/browse/results renderers to switch
+// option layout to the design's 4-column tile grid.
+function isShapeOptions(o){
+  return Array.isArray(o) && typeof o[0] === "string" && o[0].trim().startsWith("<svg");
+}
 const AVATARS=["🦊","🐼","🦁","🐯","🐨","🐸","🦉","🐢","🦄","🐳","🐙","🦋"];
 const COLORS=["#3B6E5E","#A6432E","#C98A2C","#4A6FA5","#7A4E9E"];
 // Grade -> CogAT level mapping. Grades 2 and K are auto-screened by districts,
@@ -1596,10 +1704,14 @@ function browseListHTML(){
   const detail = S.browseData.qs.map((q, i)=>{
     let body;
     if(q.o){
-      body = `<div class="opts">${q.o.map((opt, oi)=>`<div class="opt ${oi===q.a?"selected":""}">
-        <span class="letter">${optionLetter(oi)}</span>
-        <span style="flex:1;">${opt}${oi===q.a?" — correct answer":""}</span>
-      </div>`).join("")}</div>`;
+      if(isShapeOptions(q.o)){
+        body = `<div class="opts opts-grid">${q.o.map((opt, oi)=>`<div class="opt-tile ${oi===q.a?"selected":""}" title="${oi===q.a?"Correct answer":""}">${opt}</div>`).join("")}</div>`;
+      } else {
+        body = `<div class="opts">${q.o.map((opt, oi)=>`<div class="opt ${oi===q.a?"selected":""}">
+          <span class="letter">${optionLetter(oi)}</span>
+          <span style="flex:1;">${opt}${oi===q.a?" — correct answer":""}</span>
+        </div>`).join("")}</div>`;
+      }
     } else {
       body = `<div class="small"><strong>Answer:</strong> ${q.a}</div>`;
     }
@@ -1665,13 +1777,23 @@ function runnerHTML(){
   const chosen = r.answers[i];
   let body;
   if(q.o){
-    body = `<div class="opts">${q.o.map((opt, oi)=>{
-      const sel = chosen === oi ? "selected" : "";
-      return `<button class="opt ${sel}" onclick="selectAnswer(${i}, ${oi})">
-        <span class="letter">${optionLetter(oi)}</span>
-        <span style="flex:1; text-align:left;">${opt}</span>
-      </button>`;
-    }).join("")}</div>`;
+    if(isShapeOptions(q.o)){
+      // Design screen 4 — spatial options are a 4-column grid of aspect-1
+      // tiles, no letter badge. Aria-label carries the letter so the
+      // announcement is still "Option A / B / C / D".
+      body = `<div class="opts opts-grid">${q.o.map((opt, oi)=>{
+        const sel = chosen === oi ? "selected" : "";
+        return `<button class="opt-tile ${sel}" onclick="selectAnswer(${i}, ${oi})" aria-label="Option ${optionLetter(oi)}">${opt}</button>`;
+      }).join("")}</div>`;
+    } else {
+      body = `<div class="opts">${q.o.map((opt, oi)=>{
+        const sel = chosen === oi ? "selected" : "";
+        return `<button class="opt ${sel}" onclick="selectAnswer(${i}, ${oi})">
+          <span class="letter">${optionLetter(oi)}</span>
+          <span style="flex:1; text-align:left;">${opt}</span>
+        </button>`;
+      }).join("")}</div>`;
+    }
   } else {
     body = `<div class="field" style="max-width:220px;">
       <label>Your answer</label>
@@ -1786,12 +1908,15 @@ function resultsHTML(){
       const mark = ok
         ? `<span class="mark" style="border-color:${strandColor}; background:${strandColor}; color:#fff;">${ICON("check",{size:14,color:"#fff"}).replace("<svg ","<svg style=\"display:block;\" ")}</span>`
         : `<span class="mark" style="border-color:${strandColor}; color:var(--neutral-700);">·</span>`;
+      // Shape-option questions carry SVG strings — don't dump raw SVG into
+      // the "Your answer: X" text line; letter is enough for review copy.
+      const isShape = q.o && isShapeOptions(q.o);
       const yourText = q.o
-        ? (yours === null || yours === undefined ? "—" : `${optionLetter(yours)} · ${q.o[yours]}`)
+        ? (yours === null || yours === undefined ? "—" : (isShape ? optionLetter(yours) : `${optionLetter(yours)} · ${q.o[yours]}`))
         : (yours == null || yours === "" ? "—" : String(yours));
       const verdict = ok
         ? `<div class="verdict" style="color:var(--neutral-700);">Correct</div>`
-        : `<div class="verdict wrong">Correct answer: ${q.o ? `${optionLetter(q.a)} · ${q.o[q.a]}` : q.a}</div>`;
+        : `<div class="verdict wrong">Correct answer: ${q.o ? (isShape ? optionLetter(q.a) : `${optionLetter(q.a)} · ${q.o[q.a]}`) : q.a}</div>`;
       const isOpen = r.openExpl && r.openExpl.has(i);
       return `<div class="qresult">
         <div style="display:flex; align-items:flex-start; gap:var(--space-3);">
