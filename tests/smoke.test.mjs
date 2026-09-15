@@ -19,7 +19,10 @@ async function boot() {
     runScripts: "dangerously",
     resources: "usable",
     pretendToBeVisual: true,
-    url: "http://localhost/",
+    // Point the document URL at the actual file so <script src="..."> tags
+    // (supabase-client.js, auth.js) resolve to real files in src/ rather
+    // than 404-ing against localhost:80.
+    url: HTML_PATH.href,
   });
   window = dom.window;
   // Simulate the worst case for native dialogs: they throw instead of showing,
