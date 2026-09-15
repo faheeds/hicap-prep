@@ -1,0 +1,21 @@
+-- Follow-up to 20260914000200_harden_function_security.sql.
+--
+-- That migration revoked EXECUTE on public.handle_new_user() from anon and
+-- authenticated, but Postgres grants EXECUTE to PUBLIC by default on
+-- CREATE FUNCTION — and role-specific revokes don't touch the PUBLIC grant.
+-- Supabase's Security Advisor is still flagging the function because that
+-- default PUBLIC grant is intact, so anon/authenticated can still reach
+-- EXECUTE via their implicit PUBLIC membership.
+--
+-- Verify with:
+--   select grantee, privilege_type
+--   from information_schema.role_routine_grants
+--   where routine_name = 'handle_new_user';
+--
+-- The function stays SECURITY DEFINER — it's fired by the on_auth_user_created
+-- trigger on auth.users during signup and needs to insert into public.families
+-- as the migration owner (RLS otherwise blocks the fresh session's first
+-- insert against its own family row). Switching to SECURITY INVOKER would
+-- break the signup flow.
+
+revoke execute on function public.handle_new_user() from public;
