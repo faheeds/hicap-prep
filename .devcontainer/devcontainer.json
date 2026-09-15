@@ -1,0 +1,36 @@
+{
+  "name": "Level 13 Prep — Claude Code Sandbox",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
+
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+
+  "containerUser": "node",
+  "remoteUser": "node",
+
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+
+  "postCreateCommand": "npm install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint"]
+    }
+  }
+
+  // This container has full network access by default. If you want to lock
+  // Claude Code down to only the domains it actually needs (npm registry,
+  // GitHub, Supabase, Stripe) while running with --dangerously-skip-permissions,
+  // add an egress-allowlist firewall step here — see:
+  // https://code.claude.com/docs/en/permission-modes
+  // That's an extra layer, not a requirement to get started: the isolation
+  // this container already gives you (no host filesystem access, no real
+  // production credentials unless you deliberately add them) is what makes
+  // --dangerously-skip-permissions reasonable to run inside it at all.
+}
