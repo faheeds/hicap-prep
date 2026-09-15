@@ -118,10 +118,20 @@
     return { ok: !!(r.body && r.body.ok), status: r.status, ...(r.body || {}) };
   }
 
+  // -------------------------------------------------------------------------
+  // Account deletion (Epic 1, E1-7). Hard-deletes the auth.users row via
+  // the delete-account edge function, which cascades through the FK chain
+  // to drop every families / students / attempts / badges_earned row.
+  // -------------------------------------------------------------------------
+  async function deleteAccount() {
+    const r = await callEdge("delete-account", {});
+    return { ok: !!(r.body && r.body.ok), status: r.status, ...(r.body || {}) };
+  }
+
   hicap.auth = {
     init, signUp, signIn, sendMagicLink, signOut,
     currentSession, currentUser, isAuthenticated, needsAuthGate,
     isReady, onChange,
-    verifyPin, setPin,
+    verifyPin, setPin, deleteAccount,
   };
 })();

@@ -1016,8 +1016,38 @@ function parentHomeHTML(){
     ${CLOUD ? `<button class="btn secondary" onclick="authDoSignout()">Sign out</button>` : ``}
   </div>
   ${CLOUD && currentUserEmail() ? `<p class="note" style="margin-top:10px;">Signed in as ${currentUserEmail()}</p>` : ``}
+  </div>
+  <div class="panel"><h2>Delete family data</h2>
+    <p class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</p>
+    <div class="btnbar"><button class="btn clay" onclick="confirmDeleteAccount()">Delete my family's account</button></div>
   </div>`;
   return html;
+}
+async function confirmDeleteAccount(){
+  showConfirm("Really delete every kid on your roster and all their history? This cannot be undone.", async ()=>{
+    if(CLOUD && AUTH && AUTH.deleteAccount){
+      try{
+        const r = await AUTH.deleteAccount();
+        if(r.ok){
+          try{ await AUTH.signOut(); }catch(e){ /* already deleted server-side */ }
+          APP = defaultApp(); CUR = null;
+          S = {...S, mode:"student", view:"roster", parentUnlocked:false};
+          showAlert("Your family's data has been deleted.");
+          return;
+        }
+        showAlert("Could not delete account: "+(r.error||"unknown error"));
+      }catch(e){ showAlert("Could not reach the server."); }
+      return;
+    }
+    // Local-mode fallback: wipe the browser blob.
+    try{
+      if(typeof localStorage!=="undefined") localStorage.removeItem("cogat_app_v2");
+      if(typeof window!=="undefined" && window.storage) await window.storage.set("cogat_app_v2", "", true);
+    }catch(e){ /* nothing more to do */ }
+    APP = defaultApp(); CUR = null;
+    S = {...S, mode:"student", view:"roster", parentUnlocked:false};
+    showAlert("Local family data cleared.");
+  });
 }
 function changePin(){
   showPrompt("Enter a new 4-digit PIN:", async (val)=>{
