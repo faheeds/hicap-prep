@@ -2196,6 +2196,32 @@ function leaderboardHTML(){
   return html;
 }
 
+/* ---------- EMAIL REMINDER OPT-IN (Epic 4, E4-4) ---------- */
+function emailReminderToggleHTML(){
+  const optedIn = !!(APP.emailRemindersOptedIn);
+  const label = optedIn ? "Weekly reminders: ON" : "Weekly reminders: OFF";
+  const hint = optedIn
+    ? "We'll email a short practice summary every Monday."
+    : "Get a short email summary every Monday (optional).";
+  return `<div class="stack-3" style="margin-top:var(--space-2);">
+    <div class="space-between">
+      <span class="small">${hint}</span>
+      <button class="btn btn-secondary" style="min-height:36px;font-size:13px;padding:0 var(--space-3);"
+        onclick="toggleEmailReminders()">${label}</button>
+    </div>
+  </div>`;
+}
+async function toggleEmailReminders(){
+  const newVal = !APP.emailRemindersOptedIn;
+  if(STORE && STORE.saveEmailPreference){
+    try{ await STORE.saveEmailPreference(APP, newVal); }
+    catch(e){ showAlert("Could not save preference: "+e.message); return; }
+  } else {
+    APP.emailRemindersOptedIn = newVal;
+  }
+  render();
+}
+
 /* ---------- PARENT AREA ---------- */
 // PIN gate — design screen 7.
 //
@@ -2348,6 +2374,7 @@ function parentHomeHTML(){
         ${CLOUD ? `<button class="btn btn-secondary" onclick="authDoSignout()">Sign out</button>` : ``}
       </div>
       ${CLOUD && currentUserEmail() ? `<div class="note">Signed in as ${currentUserEmail()}</div>` : ``}
+      ${CLOUD ? emailReminderToggleHTML() : ``}
     </div>
     <div class="stack-3">
       <div class="caption">Export your family's data</div>

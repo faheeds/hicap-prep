@@ -163,7 +163,7 @@
 
     const { data: fam, error: famErr } = await supabase
       .from("families")
-      .select("id, parent_pin_hash, consented_at")
+      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in")
       .eq("owner_id", userId)
       .maybeSingle();
     if (famErr) { console.error("families load failed", famErr); return defaultApp(); }
@@ -196,8 +196,26 @@
       pin: fam.parent_pin_hash ? "__server__" : "1234",
       _familyId: fam.id,
       consentedAt: fam.consented_at || null,
+      emailRemindersOptedIn: fam.email_reminders_opted_in || false,
       students: studentsById,
     };
+  }
+
+  // Save email reminder opt-in (Epic 4, E4-4). Cloud mode updates
+  // families.email_reminders_opted_in; local mode stores it in the blob.
+  async function saveEmailPreference(app, optIn) {
+    const val = !!optIn;
+    if (hicap.isCloud) {
+      const supabase = await hicap.getSupabase();
+      const auth = hicap.auth && hicap.auth.currentSession();
+      if (!supabase || !auth || !app._familyId) return;
+      const { error } = await supabase.from("families")
+        .update({ email_reminders_opted_in: val })
+        .eq("id", app._familyId);
+      if (error) { console.error("email preference save failed", error); return; }
+    }
+    app.emailRemindersOptedIn = val;
+    if (!hicap.isCloud) saveLocal(app);
   }
 
   // Record COPPA consent (Epic 2, E2-2). Cloud mode writes the timestamp
@@ -284,6 +302,7 @@
     async load() { return hicap.isCloud ? await loadCloud() : await loadLocal(); },
     async save(app) { return hicap.isCloud ? await saveCloud(app) : saveLocal(app); },
     async saveConsent(app) { return await saveConsent(app); },
+    async saveEmailPreference(app, optIn) { return await saveEmailPreference(app, optIn); },
   };
 
   hicap.Store = Store;
