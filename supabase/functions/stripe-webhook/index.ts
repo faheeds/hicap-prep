@@ -6,13 +6,18 @@
 // Events handled:
 //   checkout.session.completed      — one-time purchase OR subscription first payment
 //   customer.subscription.updated   — renewal billing date shift / plan change
-//   customer.subscription.deleted   — cancelled subscription
+//   customer.subscription.deleted   — cancelled subscription (or exhausted Smart Retries)
+//   invoice.payment_failed          — subscription renewal payment failed; extends
+//                                     pass_expires_at by PAYMENT_FAILURE_GRACE_MS so
+//                                     the family retains access while Stripe retries.
+//                                     Access is ultimately revoked only if all retries
+//                                     fail and customer.subscription.deleted fires.
 //
 // Register this endpoint in the Stripe dashboard:
 //   Developers → Webhooks → Add endpoint
 //   URL: <SUPABASE_URL>/functions/v1/stripe-webhook
 //   Events to send: checkout.session.completed, customer.subscription.updated,
-//                   customer.subscription.deleted
+//                   customer.subscription.deleted, invoice.payment_failed
 //
 // Required Supabase project secrets:
 //   STRIPE_SECRET_KEY         — sk_test_... or sk_live_...
@@ -21,16 +26,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 
-const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY       = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const STRIPE_SECRET     = Deno.env.get("STRIPE_SECRET_KEY")!;
-const WEBHOOK_SECRET    = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
+const SUPABASE_URL   = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const STRIPE_SECRET  = Deno.env.get("STRIPE_SECRET_KEY")!;
+const WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
 
-// A pass purchased today and lasting one year. Used for one-time passes
-// whose effective duration is tied to the school year (Individual + Family).
-// If the customer purchases before July 31, expiry = July 31 of that year;
-// otherwise expiry = July 31 of next year. This reflects the "one season"
-// model in src/terms.html.
+// Grace period given to Stripe's Smart Retries before access is revoked after a
+// failed renewal payment. Stripe retries for up to ~8 days; 7 days ensures the
+// family's access is still active if the card succeeds on the final attempt.
+// If all retries fail, customer.subscription.deleted resets the pass to free.
+const PAYMENT_FAILURE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
+// A pass purchased today for the current testing season. One-time passes
+// (Individual + Family) expire on July 31 of the current or next school year.
 function seasonExpiry(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -56,6 +64,7 @@ Deno.serve(async (req) => {
   const stripe = new Stripe(STRIPE_SECRET, { apiVersion: "2024-04-10" });
   const admin  = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Signature verification must succeed before any DB access.
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(payload, sig, WEBHOOK_SECRET);
@@ -64,16 +73,31 @@ Deno.serve(async (req) => {
     return new Response("invalid_signature", { status: 400 });
   }
 
+  // Idempotency guard — Stripe delivers events at-least-once; a delayed
+  // duplicate checkout.session.completed could otherwise re-grant access that
+  // was legitimately revoked by a later subscription.deleted. Skip any event
+  // whose ID we've already recorded in stripe_processed_events.
+  const { data: alreadyProcessed } = await admin
+    .from("stripe_processed_events")
+    .select("event_id")
+    .eq("event_id", event.id)
+    .maybeSingle();
+  if (alreadyProcessed) {
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   switch (event.type) {
 
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       const meta = session.metadata || {};
-      const familyId    = meta.family_id;
-      const passType    = meta.pass_type as string;  // 'individual'|'family'|'family_annual'
-      const studentId   = meta.student_id || null;
-      const customerId  = typeof session.customer === "string" ? session.customer : null;
-      const subId       = typeof session.subscription === "string" ? session.subscription : null;
+      const familyId   = meta.family_id;
+      const passType   = meta.pass_type as string; // 'individual'|'family'|'family_annual'
+      const studentId  = meta.student_id || null;
+      const customerId = typeof session.customer === "string" ? session.customer : null;
+      const subId      = typeof session.subscription === "string" ? session.subscription : null;
 
       if (!familyId || !passType) {
         console.error("Missing metadata on checkout session", session.id);
@@ -82,8 +106,6 @@ Deno.serve(async (req) => {
 
       let expiresAt: string | null = null;
       if (session.mode === "subscription" && subId) {
-        // Subscription expiry is managed by customer.subscription.updated events.
-        // Fetch the subscription to get the current_period_end.
         const sub = await stripe.subscriptions.retrieve(subId);
         expiresAt = new Date(sub.current_period_end * 1000).toISOString();
       } else {
@@ -104,10 +126,18 @@ Deno.serve(async (req) => {
       const sub = event.data.object as Stripe.Subscription;
       const customerId = typeof sub.customer === "string" ? sub.customer : null;
       if (!customerId) break;
-      const expiresAt = new Date(sub.current_period_end * 1000).toISOString();
-      await admin.from("families")
-        .update({ pass_expires_at: expiresAt })
-        .eq("stripe_customer_id", customerId);
+      // Only advance the expiry date when the subscription is active and in
+      // good standing. Skipping past_due status prevents this event from
+      // overwriting the grace-period window set by invoice.payment_failed —
+      // on a failed renewal, Stripe fires subscription.updated with status
+      // 'past_due' and current_period_end = the date payment was due (now
+      // in the past), which would immediately revoke access before retries run.
+      if (sub.status === "active") {
+        const expiresAt = new Date(sub.current_period_end * 1000).toISOString();
+        await admin.from("families")
+          .update({ pass_expires_at: expiresAt })
+          .eq("stripe_customer_id", customerId);
+      }
       break;
     }
 
@@ -115,7 +145,7 @@ Deno.serve(async (req) => {
       const sub = event.data.object as Stripe.Subscription;
       const customerId = typeof sub.customer === "string" ? sub.customer : null;
       if (!customerId) break;
-      // Subscription cancelled — revert to free tier.
+      // Subscription cancelled or Smart Retries exhausted — revert to free tier.
       await admin.from("families")
         .update({
           pass_type:              "free",
@@ -126,10 +156,33 @@ Deno.serve(async (req) => {
       break;
     }
 
+    case "invoice.payment_failed": {
+      // Subscription renewal payment failed. Grant a grace period so the family
+      // retains access while Stripe retries via Smart Retries (up to ~8 days).
+      // The subscription.updated event that fires alongside this one carries
+      // status 'past_due' — we skip that update to preserve this grace window.
+      // If all retries are exhausted, customer.subscription.deleted fires and
+      // reverts the pass to free.
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+      if (!customerId) break;
+      const gracePeriodEnd = new Date(Date.now() + PAYMENT_FAILURE_GRACE_MS).toISOString();
+      await admin.from("families")
+        .update({ pass_expires_at: gracePeriodEnd })
+        .eq("stripe_customer_id", customerId);
+      break;
+    }
+
     default:
-      // Unhandled event type — log and return 200 so Stripe doesn't retry.
+      // Return 200 so Stripe doesn't retry unhandled event types.
       console.log("Unhandled webhook event:", event.type);
   }
+
+  // Record this event as processed AFTER the business logic so that if the
+  // handler throws mid-flight, Stripe's retry will attempt it again rather
+  // than silently dropping it. Duplicate delivery is safe because of the
+  // alreadyProcessed check above.
+  await admin.from("stripe_processed_events").insert({ event_id: event.id });
 
   return new Response(JSON.stringify({ received: true }), {
     headers: { "Content-Type": "application/json" },
