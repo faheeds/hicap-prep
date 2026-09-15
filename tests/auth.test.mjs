@@ -35,6 +35,21 @@ function makeFakeSupabase() {
         return { error: null };
       },
     },
+    // After sign-in the app reloads via Store.load(); return a pre-consented
+    // family so the Epic-2 consent gate steps aside and the roster becomes
+    // visible (the actual consent flow is covered in tests/consent.test.mjs).
+    from(table) {
+      const empty = { data: [], error: null };
+      const famRow = { id: "fam-1", parent_pin_hash: null, consented_at: "2026-01-01T00:00:00Z" };
+      const maybe = { data: table === "families" ? famRow : null, error: null };
+      const chain = {
+        select: () => chain, eq: () => chain, in: () => chain, order: () => chain, limit: () => chain,
+        maybeSingle: () => Promise.resolve(maybe), single: () => Promise.resolve(maybe),
+        then: (a, b) => Promise.resolve(empty).then(a, b),
+        upsert: () => chain, delete: () => chain, insert: () => chain, update: () => chain,
+      };
+      return chain;
+    },
   };
 }
 

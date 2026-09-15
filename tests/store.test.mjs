@@ -144,7 +144,10 @@ async function boot(seed) {
 
 const FAMILY_ID = "fam-1";
 const seedData = () => ({
-  families: [{ id: FAMILY_ID, owner_id: "u1", parent_pin_hash: null }],
+  // consented_at is pre-set here so the Epic-2 COPPA consent gate doesn't
+  // block the app during store-layer tests. Consent flow itself is
+  // covered separately in tests/consent.test.mjs.
+  families: [{ id: FAMILY_ID, owner_id: "u1", parent_pin_hash: null, consented_at: "2026-01-01T00:00:00Z" }],
   students: [
     { id: "stu-a", family_id: FAMILY_ID, name: "Alice", avatar: "🦊", color: "#3B6E5E",
       grade: 7, cogat_level: 13, streak_current: 3, streak_longest: 5, streak_last_date: null,

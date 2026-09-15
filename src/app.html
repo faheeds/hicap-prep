@@ -211,7 +211,13 @@ const AUTH = (typeof window!=="undefined" && window.__hicap && window.__hicap.au
 const CLOUD = !!(typeof window!=="undefined" && window.__hicap && window.__hicap.isCloud);
 function needsAuthGate(){ return AUTH ? AUTH.needsAuthGate() : false; }
 function currentUserEmail(){ const u = AUTH && AUTH.currentUser(); return u ? u.email : null; }
+// COPPA consent gate (Epic 2, E2-2). Only enforced in cloud mode — local mode
+// keeps everything on the user's device, so there's no data collection for
+// the consent to authorize. The gate sits between the auth screen and the
+// roster so no child data can be entered before the parent has consented.
+function needsConsentGate(){ return CLOUD && AUTH && AUTH.isAuthenticated() && !APP.consentedAt; }
 let AUTH_UI = {mode:"signin", email:"", info:"", err:"", busy:false};
+let CONSENT_UI = {parentBox:false, policyBox:false, err:"", busy:false};
 
 /* =========================================================
    STORAGE — delegates to src/store.js, which routes to Supabase in cloud
@@ -494,7 +500,10 @@ function submitRunner(auto){
 function render(){
   const app=document.getElementById("app");
   app.innerHTML = headerHTML() + bodyHTML() + modalHTML() + legalFooterHTML();
-  if(typeof window!=="undefined"){ window.APP=APP; window.S=S; window.CUR=CUR; window.MODAL=MODAL; } // debug mirror
+  if(typeof window!=="undefined"){
+    window.APP=APP; window.S=S; window.CUR=CUR; window.MODAL=MODAL;
+    window.AUTH_UI=AUTH_UI; window.CONSENT_UI=CONSENT_UI;
+  } // debug mirror
 }
 function legalFooterHTML(){
   return `<footer class="legal">
@@ -535,6 +544,9 @@ function bodyHTML(){
   // Auth gate: when Supabase is configured but there's no session, the app
   // shows nothing but the sign-in screen. In local-only mode this is a no-op.
   if(needsAuthGate()) return authHTML();
+  // COPPA consent gate: cloud mode only, blocks every route until the
+  // parent explicitly consents (E2-2).
+  if(needsConsentGate()) return consentHTML();
   if(S.view==="runner") return runnerHTML();
   if(S.view==="results") return resultsHTML();
   if(S.mode==="parent"){
@@ -635,6 +647,46 @@ async function authDoSignout(){
   CUR = null; S = {...S, view:"roster", parentUnlocked:false, mode:"student"};
   APP = defaultApp();
   render();
+}
+
+/* ---------- COPPA CONSENT (Epic 2, E2-2) ---------- */
+function consentHTML(){
+  const canSubmit = CONSENT_UI.parentBox && CONSENT_UI.policyBox && !CONSENT_UI.busy;
+  return `<div class="panel"><h2>Before you add your kids</h2>
+    <p>HiCap Prep will store, per kid on your roster: a first name (or nickname), an emoji avatar, their grade level, and their practice history on this app. Nothing else about your child is collected. See the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--forest);">Privacy Policy</a> for the full breakdown.</p>
+    <p>Because kids under 13 will be using this app, the law requires us to record that <em>you</em> — the parent or guardian — have consented to that data being stored. Two checkboxes and you're through.</p>
+    ${CONSENT_UI.err ? `<div class="warn">${CONSENT_UI.err}</div>` : ``}
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;cursor:pointer;">
+      <input type="checkbox" id="consentParentBox" ${CONSENT_UI.parentBox?"checked":""} onchange="CONSENT_UI.parentBox=this.checked;render();">
+      <span>I confirm I'm the parent or legal guardian of the children I'll add to this account.</span>
+    </label>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;cursor:pointer;">
+      <input type="checkbox" id="consentPolicyBox" ${CONSENT_UI.policyBox?"checked":""} onchange="CONSENT_UI.policyBox=this.checked;render();">
+      <span>I've read the <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--forest);">Privacy Policy</a> and consent to my child's data being collected as described there.</span>
+    </label>
+    <div class="btnbar">
+      <button class="btn forest" ${canSubmit?"":"disabled"} onclick="submitConsent()">${CONSENT_UI.busy?"Saving…":"I consent — continue"}</button>
+      ${CLOUD ? `<button class="btn secondary" onclick="authDoSignout()">Sign out</button>` : ``}
+    </div>
+  </div>`;
+}
+async function submitConsent(){
+  if(!(CONSENT_UI.parentBox && CONSENT_UI.policyBox)){
+    CONSENT_UI.err = "Please tick both boxes to continue."; render(); return;
+  }
+  CONSENT_UI = {...CONSENT_UI, busy:true, err:""}; render();
+  try{
+    if(STORE && STORE.saveConsent){
+      const stamp = await STORE.saveConsent(APP);
+      if(!stamp){ CONSENT_UI = {...CONSENT_UI, busy:false, err:"Could not save consent. Please try again."}; render(); return; }
+    } else {
+      APP.consentedAt = new Date().toISOString();
+    }
+    CONSENT_UI = {parentBox:false, policyBox:false, err:"", busy:false};
+    render();
+  }catch(e){
+    CONSENT_UI = {...CONSENT_UI, busy:false, err:"Could not save consent: "+(e.message||"unknown error")}; render();
+  }
 }
 
 /* ---------- ROSTER ---------- */
@@ -1241,7 +1293,15 @@ function parentHistoryHTML(){
 (async function init(){
   if(AUTH){
     try{ await AUTH.init(); }catch(e){ console.error("auth init failed", e); }
-    AUTH.onChange(()=>{ render(); });
+    // Reload the family's data whenever the session changes. Without this,
+    // signing in after boot leaves APP stuck on defaultApp() — which means
+    // no consent, no students, no PIN hash. Signing out resets to a clean
+    // defaultApp() so the next signed-in user doesn't inherit any state.
+    AUTH.onChange(async (session)=>{
+      if(session){ APP = await loadApp(); }
+      else { APP = defaultApp(); CUR = null; }
+      render();
+    });
   }
   APP = await loadApp();
   render();

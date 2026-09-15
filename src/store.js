@@ -163,7 +163,7 @@
 
     const { data: fam, error: famErr } = await supabase
       .from("families")
-      .select("id, parent_pin_hash")
+      .select("id, parent_pin_hash, consented_at")
       .eq("owner_id", userId)
       .maybeSingle();
     if (famErr) { console.error("families load failed", famErr); return defaultApp(); }
@@ -195,8 +195,28 @@
       // server verify path.
       pin: fam.parent_pin_hash ? "__server__" : "1234",
       _familyId: fam.id,
+      consentedAt: fam.consented_at || null,
       students: studentsById,
     };
+  }
+
+  // Record COPPA consent (Epic 2, E2-2). Cloud mode writes the timestamp
+  // to families.consented_at via the RLS-scoped update policy; local mode
+  // stashes it in the blob so the gate stops re-showing on next boot.
+  async function saveConsent(app) {
+    const now = new Date().toISOString();
+    if (hicap.isCloud) {
+      const supabase = await hicap.getSupabase();
+      const auth = hicap.auth && hicap.auth.currentSession();
+      if (!supabase || !auth || !app._familyId) return null;
+      const { error } = await supabase.from("families")
+        .update({ consented_at: now })
+        .eq("id", app._familyId);
+      if (error) { console.error("consent save failed", error); return null; }
+    }
+    app.consentedAt = now;
+    if (!hicap.isCloud) saveLocal(app);
+    return now;
   }
 
   async function saveCloud(app) {
@@ -263,6 +283,7 @@
     newId() { return newRowId(); },
     async load() { return hicap.isCloud ? await loadCloud() : await loadLocal(); },
     async save(app) { return hicap.isCloud ? await saveCloud(app) : saveLocal(app); },
+    async saveConsent(app) { return await saveConsent(app); },
   };
 
   hicap.Store = Store;

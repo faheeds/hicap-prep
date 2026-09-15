@@ -24,11 +24,13 @@ function makeFakeSupabase() {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signOut: async () => ({ error: null }),
     },
-    from() {
-      // Store.load will query families/students/attempts; return empty rows so
-      // the app boots with a clean roster and we can focus on PIN flows.
+    from(table) {
+      // Store.load will query families/students/attempts. Families gets a
+      // pre-consented row so the Epic-2 consent gate stays out of the way
+      // during PIN-flow tests; other tables return empty.
       const empty = { data: [], error: null };
-      const maybe = { data: null, error: null };
+      const famRow = { id: "fam-1", parent_pin_hash: null, consented_at: "2026-01-01T00:00:00Z" };
+      const maybe = { data: table === "families" ? famRow : null, error: null };
       const chain = {
         select: () => chain, eq: () => chain, in: () => chain, order: () => chain, limit: () => chain,
         maybeSingle: () => Promise.resolve(maybe),

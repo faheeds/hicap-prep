@@ -27,9 +27,10 @@ function makeFakeSupabase() {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signOut: async () => ({ error: null }),
     },
-    from() {
+    from(table) {
       const empty = { data: [], error: null };
-      const maybe = { data: null, error: null };
+      const famRow = { id: "fam-1", parent_pin_hash: null, consented_at: "2026-01-01T00:00:00Z" };
+      const maybe = { data: table === "families" ? famRow : null, error: null };
       const chain = {
         select: () => chain, eq: () => chain, in: () => chain, order: () => chain, limit: () => chain,
         maybeSingle: () => Promise.resolve(maybe), single: () => Promise.resolve(maybe),
