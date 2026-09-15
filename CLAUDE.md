@@ -84,6 +84,20 @@ need reshaping once the `level` key exists.
   version strictly greater than the highest present. Do not guess the next
   number from the pattern of a few recent files — collisions have happened
   twice this way.
+- **Stripe live-mode gate — do not cross until manually verified.** Do not
+  switch Stripe from test mode to live mode, do not add production Stripe keys
+  to any environment, and do not invite any real customer until every item in
+  the "Pre-live verification checklist" in `docs/PRODUCT_BACKLOG.md` (Epic 3,
+  end of the table) has been completed against the hosted Supabase DB with
+  test-mode keys. The checklist specifically requires: a successful test-mode
+  purchase of all three pass types, an idempotency replay test, and — most
+  critically — a real payment-failure sequence using Stripe's guaranteed-decline
+  test card (`4000 0000 0000 0341`) confirming the 7-day grace period holds in
+  the live database and that the concurrent `subscription.updated (past_due)`
+  event does not wipe it out. A misconfigured webhook, a migration not yet
+  applied to the hosted DB, or an untested grace-period interaction can result
+  in real money being charged with no access granted, or access granted without
+  payment — neither is recoverable without manual DB intervention.
 
 ## Tech choices already made (don't relitigate without a reason)
 

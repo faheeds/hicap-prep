@@ -88,6 +88,39 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 | E3-7 | P1 | ✅ | Promo/discount codes | Support a code at checkout (for pilot families, referrals). | **Done:** `allow_promotion_codes: true` in create-checkout session creation. Stripe Coupons created in the dashboard are automatically accepted at checkout. |
 | E3-8 | P2 | ✅ | Refund/cancellation self-service | Parent can request a refund or cancel a subscription from account settings without emailing support. | **Done:** `supabase/functions/create-portal-session/index.ts` creates a Stripe Customer Portal session for the authenticated parent (looks up stripe_customer_id from families). `openBillingPortal()` in app.html calls it and redirects. "Manage subscription" button added to `parentPlanHTML()`. Portal allows subscription cancellation, payment method updates, invoice history, and refund requests. **Manual setup:** activate Customer Portal in Stripe dashboard (Settings → Billing → Customer Portal → Activate). |
 
+### Pre-live verification checklist (required before switching to live mode or inviting any real customer)
+
+All steps must be completed in Stripe **test mode** against the **hosted Supabase DB** (not a local emulator). Do not proceed to live mode until every item below is checked off.
+
+**Setup prerequisites** (see `.env.example` for exact steps)
+- [ ] Stripe test-mode keys, all three price IDs, and the webhook signing secret are set as Supabase project secrets
+- [ ] Migration `20260914000800_stripe_entitlements.sql` applied to hosted DB (adds entitlement columns)
+- [ ] Migration `20260914000900_stripe_security.sql` applied to hosted DB (adds entitlement trigger + processed_events table)
+- [ ] Edge functions deployed: `create-checkout`, `stripe-webhook`, `create-portal-session`
+- [ ] Webhook endpoint registered in Stripe dashboard for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+- [ ] Customer Portal activated in Stripe dashboard (Settings → Billing → Customer Portal)
+
+**Pass purchase flows**
+- [ ] Buy an Individual Pass ($49, test card `4242 4242 4242 4242`): confirm `pass_type = 'individual'` and `pass_student_id` set correctly in the families row, and that only the named student gains access in the app
+- [ ] Buy a Family Pass ($79, same test card): confirm `pass_type = 'family'`, all roster students gain access
+- [ ] Buy an Annual Family Pass ($129, same test card): confirm `pass_type = 'family_annual'`, `stripe_subscription_id` set, `pass_expires_at` matches the subscription's `current_period_end`
+
+**Duplicate-event idempotency**
+- [ ] In the Stripe dashboard, resend a `checkout.session.completed` event that already processed: confirm `pass_type` is unchanged and no duplicate row appears in `stripe_processed_events`
+
+**Payment failure + grace period (the critical sequence)**
+- [ ] Create an Annual Pass subscription using the always-fails-on-renewal test card (`4000 0000 0000 0341`). In Stripe test mode, advance the subscription's billing date (Dashboard → Subscriptions → [sub] → "Skip trial" or use the clock feature) to trigger a renewal failure.
+- [ ] Confirm `invoice.payment_failed` fired: `pass_expires_at` in the families row must be approximately 7 days in the future (grace period), NOT the past renewal date.
+- [ ] Confirm the concurrent `customer.subscription.updated` (status: `past_due`) did NOT overwrite the grace period.
+- [ ] Simulate Smart Retries exhausted: in the Stripe dashboard, cancel the subscription manually to trigger `customer.subscription.deleted`. Confirm `pass_type` reverts to `'free'` and `pass_expires_at` is cleared.
+
+**Entitlement self-grant protection**
+- [ ] Using a browser with your own JWT (from the app's session), attempt a direct PATCH to the families row setting `pass_type = 'family'` via the Supabase REST API. Confirm the request returns `403 insufficient_privilege` and the families row is unchanged.
+
+**Billing portal**
+- [ ] Click "Manage subscription" in parent settings: confirm redirect to the Stripe Customer Portal.
+- [ ] Cancel the annual subscription from the portal: confirm `customer.subscription.deleted` fires and `pass_type` reverts to `'free'` in the app.
+
 ---
 
 ## Epic 4 — Paid-launch product gaps (P1)
