@@ -224,7 +224,9 @@ test("leaderboard ranks by completion/streak, not raw accuracy", () => {
   window.selectStudent(anyId);
   window.S.view = "leaderboard";
   window.render();
-  assert.ok(doc.getElementById("app").textContent.includes("Leaderboard"));
+  // Design renames this screen to "Effort board" — the render just needs
+  // to show that heading and rank rows to prove the view actually loaded.
+  assert.ok(doc.getElementById("app").textContent.includes("Effort board"));
 });
 
 after(() => {

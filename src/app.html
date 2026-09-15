@@ -333,6 +333,65 @@
     font-family:var(--font-heading); font-weight:600; font-size:13px;
     cursor:pointer; border-radius:var(--radius-md);}
   .side-links button:hover{background:rgba(242,98,31,0.08);}
+
+  /* Program (The route). */
+  .week-list{display:flex; flex-direction:column;}
+  .week-list > div{border-top:1px solid var(--divider);}
+  .week-list > div:last-child{border-bottom:1px solid var(--divider);}
+  .week-head{display:flex; align-items:center; gap:var(--space-3);
+    min-height:64px; padding:var(--space-2) 0;
+    background:none; border:none; text-align:left; cursor:pointer;
+    color:inherit; font-family:inherit; width:100%;}
+  .week-head:hover{background:rgba(29,27,46,0.03);}
+  .week-num{width:30px; height:30px; flex:none; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-family:var(--font-heading); font-size:13px;
+    font-variant-numeric:tabular-nums;
+    border:1px solid var(--neutral-400); color:var(--neutral-700);}
+  .week-num.done{background:var(--flare-200); border-color:var(--flare-500); color:var(--flare-900);}
+  .week-head .body{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .week-head .title{font-family:var(--font-heading); font-weight:600; font-size:17px; line-height:1.2;}
+  .week-head .summary{font-size:12px; color:var(--neutral-700); font-variant-numeric:tabular-nums;}
+  .week-head .caret{color:var(--neutral-600); transition:transform 0.15s ease;}
+  .week-head .caret.open{transform:rotate(180deg);}
+  .day-list{padding:0 0 var(--space-3) 42px; display:flex; flex-direction:column;}
+  .day-row{display:flex; align-items:center; gap:var(--space-3);
+    min-height:48px; padding:var(--space-2) 0;
+    border-top:1px solid var(--divider);
+    background:none; border-left:none; border-right:none; border-bottom:none;
+    color:inherit; font-family:inherit; text-align:left;
+    font-size:13px; cursor:pointer;}
+  .day-row:hover:not(:disabled){background:rgba(242,98,31,0.06);}
+  .day-row:disabled{cursor:not-allowed;}
+  .day-row .dow{width:34px; flex:none; font-size:12px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--neutral-600);}
+  .day-row .title{flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .day-row.upcoming .title{color:var(--neutral-600); opacity:0.6;}
+  .day-row .status{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--neutral-700);}
+  .day-row .status.start{color:var(--flare-800);}
+  .day-row .status.done{color:var(--flare-700);}
+
+  /* Effort board. */
+  .board-row{display:flex; align-items:center; gap:var(--space-3);
+    min-height:56px; padding:var(--space-2) 0;
+    border-top:1px solid var(--divider);}
+  .board-row:last-child{border-bottom:1px solid var(--divider);}
+  .board-row.self{background:var(--flare-100);
+    margin:0 calc(-1 * var(--space-4)); padding-left:var(--space-4); padding-right:var(--space-4);}
+  .board-row .rank{width:22px; font-family:var(--font-heading); font-size:16px;
+    font-variant-numeric:tabular-nums; color:var(--neutral-700);}
+  .board-row .avatar-32{width:32px; height:32px; flex:none; border-radius:50%;
+    background:var(--neutral-200); border:1px solid var(--neutral-400);
+    color:var(--neutral-800); font-family:var(--font-heading); font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .board-row.rank-1 .avatar-32{background:var(--flare-300); border-color:var(--flare-600); color:var(--flare-900);}
+  .board-row .name{flex:1; min-width:0; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; font-size:15px;}
+  .board-row .lessons{font-size:12px; color:var(--neutral-700); font-variant-numeric:tabular-nums;}
+  .board-row .streak{display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; color:var(--neutral-700); font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -452,7 +511,11 @@ let CUR = null; // current student id (session only)
 let S = {mode:"student", view:"roster",
   b:null,t:null,sub:null, browseData:null, runner:null,
   addingStudent:false, newAvatar:AVATARS[0], newGrade:7, parentUnlocked:false,
-  mockStudentId:null, mockConfigId:null, openWeek:1};
+  mockStudentId:null, mockConfigId:null,
+  // Route/program: multiple weeks can be open at once (matches the design's
+  // Expand-all/Collapse-all toggle). Defaults to just the current week when
+  // a student is selected — see openDefaultProgramWeeks().
+  openWeeks:new Set([1])};
 
 function currentStudent(){ return CUR ? APP.students[CUR] : null; }
 
@@ -1176,48 +1239,114 @@ function jumpToNextLesson(){
   const st = currentStudent();
   const nl = nextLesson(st);
   if(!nl){ S.view = "program"; render(); return; }
-  S.openWeek = nl.week;
+  S.openWeeks = new Set([nl.week]);
   S.view = "program";
   render();
 }
 
-/* ---------- PROGRAM (10-week path) ---------- */
+/* ---------- PROGRAM ("The route") ---------- */
+// Short title per day within a week — matches the design's "Getting set 1"
+// pattern (weekday titles are variants of the week's theme; Sunday is the
+// Mixed review set). Purely a label.
+function dayTitle(weekNum, day){
+  if(day === "sun") return "Mixed review set";
+  if(day === "sat" && MOCK_WEEKS[weekNum]) return "Timed mock test";
+  const theme = WEEK_TITLES[weekNum] || `Week ${weekNum}`;
+  return `${theme}, set ${["mon","tue","wed","thu","fri","sat"].indexOf(day) + 1}`;
+}
+// Given the completed keys set + this week's plan, find the current week's
+// next unfinished, non-mock, non-review-only-and-empty day.
+function isNextDayOfCurrentWeek(weekNum, day, st, done){
+  const st_lessons = programCompletionCount(st);
+  const currentWeek = currentWeekFromLessons(st_lessons);
+  if(weekNum !== currentWeek) return false;
+  const plan = weekPlan(weekNum, st);
+  for(const d of DAYS){
+    if(plan[d].type === "mock") continue;
+    if(!done.has("w"+weekNum+"-"+d)) return d === day;
+  }
+  return false;
+}
 function programHTML(){
-  const st=currentStudent();
-  const done=programDoneKeys(st);
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / Learning path</div>
-  <div class="panel"><h2>10-week learning path</h2>
-  <p class="note">Tap a week to expand it. Each day pulls a fresh, randomly-chosen set of questions from the bank — mock-test Saturdays are started by a parent.</p></div>`;
-  for(let w=1; w<=10; w++){
-    const plan=weekPlan(w, st);
-    const dayCount = DAYS.filter(d=>done.has("w"+w+"-"+d)).length;
-    html += `<div class="week-block">
-      <div class="week-head" onclick="toggleWeek(${w})">
-        <span>Week ${w} — Tier ${WEEK_TIER[w]}${MOCK_WEEKS[w]?" · Mock checkpoint":""}</span>
-        <span class="wk-meta">${dayCount}/7 done</span></div>`;
-    if(S.openWeek===w){
-      DAYS.forEach(d=>{
-        const key="w"+w+"-"+d; const isDone=done.has(key);
-        const locked = plan[d].type==="mock";
-        html += `<div class="day-row ${isDone?'done':''}">
-          <span class="dlbl">${DAY_LABELS[d]}</span>
-          <span style="flex:1;">${plan[d].label}</span>
-          <span class="dstatus ${isDone?'done':(locked?'locked':'')}">${isDone?'✓ Done':(locked?'🔒 Parent':'Start →')}</span>
-        </div>`;
-      });
-      html += `<div style="padding:10px 14px;">`;
-      DAYS.forEach(d=>{
-        if(plan[d].type!=="mock"){
-          html += `<button class="btn secondary" style="margin:3px 4px 3px 0;font-size:.78rem;padding:6px 10px;" onclick="launchProgramDay(${w},'${d}')">${DAY_LABELS[d].slice(0,3)}</button>`;
-        }
+  const st = currentStudent();
+  const done = programDoneKeys(st);
+  const openCount = S.openWeeks.size;
+  const expandLabel = openCount > 3 ? "Collapse all" : "Expand all";
+
+  let html = `<div class="stack-4">
+    <div class="space-between" style="align-items:flex-end;">
+      <div class="stack-3" style="gap:var(--space-1);">
+        <div class="caption-flare">The route</div>
+        <h2 class="heading">Ten weeks, seventy days</h2>
+      </div>
+      <button class="btn btn-ghost" onclick="toggleAllWeeks()">${expandLabel}</button>
+    </div>
+    <div class="week-list">`;
+
+  for(let w = 1; w <= 10; w++){
+    const plan = weekPlan(w, st);
+    const dayCount = DAYS.filter(d => done.has("w"+w+"-"+d)).length;
+    const isCurrent = currentWeekFromLessons(programCompletionCount(st)) === w;
+    const isComplete = dayCount === 7;
+    const summary = isComplete ? `complete · 7 of 7`
+                  : isCurrent ? `${dayCount} of 7 · this week`
+                              : `${dayCount} of 7`;
+    const isOpen = S.openWeeks.has(w);
+    html += `<div>
+      <button class="week-head" onclick="toggleWeek(${w})">
+        <span class="week-num ${isComplete?"done":""}">${String(w).padStart(2,"0")}</span>
+        <span class="body">
+          <span class="title">${WEEK_TITLES[w]}</span>
+          <span class="summary">${summary}</span>
+        </span>
+        <span class="caret ${isOpen?"open":""}">${ICON("chevron-down",{size:18})}</span>
+      </button>`;
+    if(isOpen){
+      html += `<div class="day-list">`;
+      DAYS.forEach(d => {
+        const key = "w"+w+"-"+d;
+        const isDone = done.has(key);
+        const isLocked = plan[d].type === "mock" && !isDone;
+        const isNext = !isDone && !isLocked && isNextDayOfCurrentWeek(w, d, st, done);
+        const isUpcoming = !isDone && !isLocked && !isNext;
+        const statusText = isDone ? "done"
+                         : isLocked ? "parent starts"
+                         : isNext ? "start"
+                         : "";
+        const statusClass = isDone ? "done" : isNext ? "start" : "";
+        const glyph = isDone ? ICON("check",{size:16,color:"var(--flare-700)"})
+                    : isLocked ? ICON("lock",{size:16,color:"var(--neutral-600)"})
+                    : isNext ? ICON("arrow-right",{size:16,color:"var(--flare)"})
+                    : "";
+        html += `<button class="day-row ${isUpcoming?"upcoming":""}"
+          ${isLocked ? "disabled" : ""}
+          onclick="${isLocked ? "" : `launchProgramDay(${w},'${d}')`}">
+          <span class="dow">${d.slice(0,3)}</span>
+          <span class="title">${dayTitle(w, d)}</span>
+          <span class="status ${statusClass}">${statusText}</span>
+          ${glyph}
+        </button>`;
       });
       html += `</div>`;
     }
     html += `</div>`;
   }
+
+  html += `</div>
+    <p class="note">Saturdays are timed mock tests. A parent unlocks and starts them from the parent area, so nobody sits a mock by accident.</p>
+  </div>`;
   return html;
 }
-function toggleWeek(w){ S.openWeek = (S.openWeek===w) ? null : w; render(); }
+function toggleWeek(w){
+  const s = new Set(S.openWeeks);
+  if(s.has(w)) s.delete(w); else s.add(w);
+  S.openWeeks = s;
+  render();
+}
+function toggleAllWeeks(){
+  S.openWeeks = S.openWeeks.size > 3 ? new Set() : new Set([1,2,3,4,5,6,7,8,9,10]);
+  render();
+}
 
 function launchProgramDay(weekNum, day){
   const st=currentStudent();
@@ -1407,21 +1536,33 @@ function progressHTML(){
   return html;
 }
 
-/* ---------- LEADERBOARD ---------- */
+/* ---------- BOARD (Effort board) ---------- */
 function leaderboardHTML(){
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / Leaderboard</div>
-  <div class="panel"><h2>Leaderboard</h2>
-  <p class="note">Ranked by lessons completed and streak — not by test scores, so everyone's progress counts.</p></div>`;
   const rows = Object.values(APP.students).map(st=>({
-    st, completion: programCompletionCount(st), streak: st.streak.current||0,
-    badges: computeBadges(st).filter(b=>b.earned).length
-  })).sort((a,b)=> (b.completion-a.completion) || (b.streak-a.streak));
-  html += `<table class="lb"><tr><th></th><th>Name</th><th>Progress</th><th>Streak</th><th>Badges</th></tr>`;
-  rows.forEach((r,i)=>{
-    html += `<tr><td>${i+1}</td><td><span class="av-sm">${r.st.avatar}</span>${r.st.name}</td>
-      <td>${r.completion}/70</td><td>🔥${r.streak}</td><td>★${r.badges}</td></tr>`;
+    st,
+    completion: programCompletionCount(st),
+    streak: (st.streak && st.streak.current) || 0,
+  })).sort((a,b) => (b.completion - a.completion) || (b.streak - a.streak));
+
+  let html = `<div class="stack-4">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption">This week</div>
+      <h2 class="heading">Effort board</h2>
+    </div>
+    <div class="rowlist">`;
+  rows.forEach((r, i)=>{
+    const isSelf = CUR === r.st.id;
+    html += `<div class="board-row rank-${i+1} ${isSelf?"self":""}">
+      <span class="rank">${i+1}</span>
+      <span class="avatar-32">${initialsFor(r.st.name).toUpperCase()}</span>
+      <span class="name">${r.st.name}</span>
+      <span class="lessons">${r.completion} lesson${r.completion===1?"":"s"}</span>
+      <span class="streak">${ICON("flame",{size:14,color:r.streak>0?"var(--flare)":"var(--neutral-500)"})}${r.streak}</span>
+    </div>`;
   });
-  html += `</table>`;
+  html += `</div>
+    <p class="note">Ranked by lessons finished and days in a row. Test scores are never shown here and never affect the order, so the board can only ever reward showing up.</p>
+  </div>`;
   return html;
 }
 
