@@ -1,4 +1,4 @@
-# Level 13 Prep — Project Memory
+# HiCap Prep — Project Memory
 
 Read this in full before doing anything. This file is the standing context for
 every session — don't ask the user to repeat what's already written here.

@@ -1,4 +1,4 @@
-# Business Plan: Level 13 Prep — CogAT & Gifted-Test Readiness Platform
+# Business Plan: HiCap Prep — CogAT & Gifted-Test Readiness Platform
 
 *Draft v1 — prepared as a working document, not a finished investor deck*
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-Level 13 Prep is a web-based practice platform that helps families prepare kids for cognitive-abilities admissions tests (CogAT and similar assessments) used by school districts nationwide for gifted/highly-capable program placement. The current build is a working prototype: a 540-question adaptive bank, a 10-week guided program, family/roster support, gamified progress tracking, and parent-controlled timed mock exams.
+HiCap Prep is a web-based practice platform that helps families prepare kids for cognitive-abilities admissions tests (CogAT and similar assessments) used by school districts nationwide for gifted/highly-capable program placement. The current build is a working prototype: a 540-question adaptive bank, a 10-week guided program, family/roster support, gamified progress tracking, and parent-controlled timed mock exams.
 
 The opportunity is a large, underserved, and currently fragmented market: parents spend meaningfully on gifted-test prep (tutors, workbooks, one-off courses) with few well-built, affordable, digital-first options. This plan lays out how to turn the existing prototype into a monetizable product, who to sell it to, how to price it, what needs to be fixed before charging money for it, and a realistic first-90-days path to revenue.
 
@@ -120,7 +120,7 @@ Rough sequencing, not a committed timeline:
 1. **Real accounts + backend.** Replace shared local/cloud storage with actual user auth and a real database (Supabase or Firebase are both fast paths for a small team; you already have the technical background to build this directly).
 2. **Payments.** Stripe Checkout for one-time seasonal passes; Stripe Billing if the annual auto-renew tier is offered.
 3. **Content expansion, Grades 3–11.** Requires one data-model refactor first (add a `level` dimension to the question bank and student roster — see `docs/PRODUCT_BACKLOG.md` Epic 5, row E5-0), then each additional CogAT level is a bounded, repeatable content-production task using the same authoring pipeline already built for Level 13. This is the most direct lever for expanding total addressable market and the thing that makes the Family Pass pricing model actually deliver on its promise. Grade 1 (Level 8) is explicitly out of scope for this phase — its picture-based format needs a separate build (Epic 9).
-4. **Decide the product name.** "Level 13 Prep" works as a name when the product only serves grade 7; it undersells or confuses the product once other grades ship. Resolve this before the landing page (next item) goes live — the landing page has to speak to every grade's parent, not just grade 7's.
+4. **~~Decide the product name.~~ Decided — renamed to "HiCap Prep."** "Level 13 Prep" undersold the product once it serves more than grade 7; "HiCap" ties directly to the Highly Capable Program terminology parents already search for and use. Applied across the docs, config, and the prototype's visible branding — a repo/GitHub rename and eventual domain purchase are the only pieces still outstanding, and neither blocks other work.
 5. **Parent-facing polish.** A proper onboarding flow, a real privacy policy and terms of service, and a cleaner "why this works" landing page aimed at a parent who's never seen the product before (today's UI assumes the person opening it already knows what it is).
 6. **Basic analytics** for you: signup → paid conversion, program completion rate, and mock-test completion rate are the three numbers that matter most for iterating pricing and messaging.
 

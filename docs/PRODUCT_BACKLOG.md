@@ -1,4 +1,4 @@
-# Product Backlog — Level 13 Prep (CogAT App)
+# Product Backlog — HiCap Prep (CogAT App)
 
 This is written to be fed directly to Claude Code, one epic (or even one row) at a time. Epic 0 documents what already exists in `cogat_prep_app.html` so Claude Code doesn't rebuild it. Epics 1+ are new work, **ordered by priority** — build top to bottom unless a dependency forces a reorder (dependencies are called out per item).
 
@@ -99,7 +99,7 @@ Reference only — everything here exists in `cogat_prep_app.html` today. Don't 
 | E4-3 | P1 | ⬜ | Accessibility pass | Keyboard navigation through the quiz runner, ARIA labels on custom controls, color-contrast check on the palette. | |
 | E4-4 | P2 | ⬜ | Email reminders | Optional weekly digest to parents ("3 lessons left this week") and streak-risk nudges. | Needs consent (opt-in), ties to E2-2 |
 | E4-5 | P2 | ⬜ | Printable PDF progress report | One-click export of a student's program progress + mastery bars, useful for parents sharing with a tutor. | |
-| E4-6 | P1 | ⬜ | Decide product name/brand for multi-grade scope | "Level 13 Prep" (app title, repo name, file names) anchors the whole brand to grade 7 specifically. Once Epic 5 ships other grades, that name undersells or confuses the product. Decide: keep it as a sub-brand ("Level 13 Prep" becomes the grade-7 track name inside a bigger product), or rename the whole thing. | This is a founder decision, not something to silently resolve in code — resolve it before E4-1 (landing page) ships, since that page has to explain the product to every grade's parent, not just grade 7's |
+| E4-6 | P1 | ✅ | Decide product name/brand for multi-grade scope | **Decided: renamed to "HiCap Prep."** Applied to `README.md`, `CLAUDE.md`, `package.json`, `.devcontainer/devcontainer.json`, and the app's `<title>`/header in `src/app.html`. "HiCap" ties directly to the Highly Capable Program terminology districts and parents already use — reads as more grade-agnostic than the old name. | Remaining follow-through, not urgent: the repo/GitHub project name, any future Stripe product names, and a domain name still need to catch up when convenient — none of that blocks other epics |
 
 ---
 

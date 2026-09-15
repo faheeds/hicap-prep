@@ -1,4 +1,4 @@
-# Level 13 Prep
+# HiCap Prep
 
 CogAT prep app for gifted/advanced-learning admissions testing — 10-week guided
 program, family roster, parent-controlled timed mock tests.

@@ -1,5 +1,5 @@
 {
-  "name": "Level 13 Prep — Claude Code Sandbox",
+  "name": "HiCap Prep — Claude Code Sandbox",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
 
   "features": {
