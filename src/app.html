@@ -1462,91 +1462,163 @@ function launchProgramDay(weekNum, day){
   startRunner("Week "+weekNum+" · "+DAY_LABELS[day]+" — "+d.label, qs, {weekKey});
 }
 
-/* ---------- FREE PRACTICE PICKER ---------- */
+/* ---------- FREE PRACTICE PICKER (adaptation — not in the design set) ----------
+   Reached from the Today screen's secondary link row. Same tokens as the
+   rest of the app: back row + caption/heading, divider-separated .row
+   list, strand-colored feature. */
+function backRowHTML(prevView, label){
+  return `<div class="back-row">
+    <button class="btn btn-ghost" onclick="${prevView}">${ICON("chevron-left",{size:16})}Back${label?` to ${label}`:""}</button>
+  </div>`;
+}
 function practiceBatteryHTML(){
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / Free practice</div>
-  <div class="panel"><h2>Pick a battery</h2><div class="grid3" style="margin-top:10px;">`;
-  ["verbal","quant","nonverbal"].forEach(b=>{
-    html += `<div class="choice" onclick="pickBattery('${b}')"><h3>${BLABEL[b]}</h3><p>${BSUB[b].map(s=>SLABEL[s]).join(" · ")}</p></div>`;
-  });
-  html += `</div></div>`;
-  return html;
+  return `${backRowHTML("goHome()","Today")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption-flare">Free practice</div>
+      <h2 class="heading">Pick a strand</h2>
+    </div>
+    <div class="rowlist">
+      ${STRAND_ORDER.map(b=>`<button class="row" onclick="pickBattery('${b}')">
+        <span class="avatar" style="background:${STRAND_COLOR[b].replace("500","100")}; border-color:${STRAND_COLOR[b]}; color:${STRAND_COLOR[b]};">${BLABEL[b][0]}</span>
+        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:15px;">${BLABEL[b]} reasoning</span>
+          <span class="small" style="color:var(--neutral-700);">${BSUB[b].map(s=>SLABEL[s]).join(" · ")}</span>
+        </span>
+        ${ICON("arrow-right",{size:18,color:"var(--flare)"})}
+      </button>`).join("")}
+    </div>
+  </div>`;
 }
 function pickBattery(b){ S.b=b; S.t=null; S.sub=null; S.view="tier-pick"; render(); }
 function tierPickHTML(){
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / ${BLABEL[S.b]}</div>
-  <div class="panel"><h2>${BLABEL[S.b]} — choose a difficulty tier</h2>
-  <div class="grid3" style="margin-top:10px;">`;
-  [1,2,3].forEach(t=>{
-    html += `<div class="choice" onclick="pickTier(${t})"><h3>Tier ${t}</h3>
-      <p>${t===1?"Foundation":t===2?"Timed practice":"Weak-spot sprint"}</p></div>`;
-  });
-  html += `</div></div>`;
-  return html;
+  const tiers = [{n:1, label:"Foundation"}, {n:2, label:"Timed practice"}, {n:3, label:"Weak-spot sprint"}];
+  return `${backRowHTML("S.view='practice-battery';render();","strands")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption-flare">${BLABEL[S.b]} reasoning</div>
+      <h2 class="heading">Choose a difficulty tier</h2>
+    </div>
+    <div class="rowlist">
+      ${tiers.map(t=>`<button class="row" onclick="pickTier(${t.n})">
+        <span class="avatar" style="background:${STRAND_COLOR[S.b].replace("500","100")}; border-color:${STRAND_COLOR[S.b]}; color:${STRAND_COLOR[S.b]};">${t.n}</span>
+        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:15px;">Tier ${t.n}</span>
+          <span class="small" style="color:var(--neutral-700);">${t.label}</span>
+        </span>
+        ${ICON("arrow-right",{size:18,color:"var(--flare)"})}
+      </button>`).join("")}
+    </div>
+  </div>`;
 }
 function pickTier(t){ S.t=t; S.view="subtest-pick"; render(); }
 function subtestPickHTML(){
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / <a onclick="pickBattery(S.b)">${BLABEL[S.b]}</a> / Tier ${S.t}</div>
-  <div class="panel"><h2>Choose a subtest</h2>
-  <p class="note">Each pool has 12 questions banked — a practice round randomly picks 10 of them.</p>
-  <div class="grid3" style="margin-top:10px;">`;
-  BSUB[S.b].forEach(sub=>{
-    html += `<div class="choice" onclick="S.sub='${sub}';render();"><h3>${SLABEL[sub]}</h3><p>${DRILLS[S.b][S.t][sub].length} in bank</p></div>`;
-  });
-  html += `<div class="choice" onclick="S.sub='ALL';render();"><h3>All 3 (mixed)</h3><p>30 questions, randomly drawn</p></div>`;
-  html += `</div>`;
-  if(S.sub){
-    const label = S.sub==="ALL" ? "All subtests, mixed" : SLABEL[S.sub];
-    html += `<div style="margin-top:16px;"><p><strong>${label}</strong> selected.</p>
-      <div class="btnbar">
-        <button class="btn secondary" onclick="launchBrowseOne()">Browse (see answers)</button>
-        <button class="btn forest" onclick="launchPracticeOne()">Take as practice test</button>
-      </div></div>`;
-  }
-  html += `</div>`;
-  return html;
+  const subs = BSUB[S.b].slice();
+  return `${backRowHTML("S.view='tier-pick';render();","tiers")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption-flare">${BLABEL[S.b]} · Tier ${S.t}</div>
+      <h2 class="heading">Choose a subtest</h2>
+    </div>
+    <p class="note">Each pool has 20 questions banked; a practice round pulls 10 fresh ones each time.</p>
+    <div class="rowlist">
+      ${subs.map(sub=>`<button class="row ${S.sub===sub?"":""}" onclick="S.sub='${sub}';render();" style="${S.sub===sub?"background:var(--flare-100);":""}">
+        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:15px;">${SLABEL[sub]}</span>
+          <span class="small tnum" style="color:var(--neutral-700);">${DRILLS[S.b][S.t][sub].length} in bank</span>
+        </span>
+        ${S.sub===sub ? ICON("check",{size:18,color:"var(--flare)"}) : ""}
+      </button>`).join("")}
+      <button class="row" onclick="S.sub='ALL';render();" style="${S.sub==='ALL'?"background:var(--flare-100);":""}">
+        <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:15px;">All 3 subtests (mixed)</span>
+          <span class="small tnum" style="color:var(--neutral-700);">30 questions, randomly drawn</span>
+        </span>
+        ${S.sub==='ALL' ? ICON("check",{size:18,color:"var(--flare)"}) : ""}
+      </button>
+    </div>
+    ${S.sub ? `<div class="sticky-bar" style="flex-direction:row; gap:var(--space-2);">
+      <button class="btn btn-secondary btn-cta" style="flex:1;" onclick="launchBrowseOne()">Browse (answers shown)</button>
+      <button class="btn btn-primary btn-cta" style="flex:1;" onclick="launchPracticeOne()">Take as practice</button>
+    </div>` : ``}
+  </div>`;
 }
 function launchPracticeOne(){
-  const qs=collectQuestions(S.b,S.t,S.sub,PRACTICE_PER_SUB);
+  const qs = collectQuestions(S.b, S.t, S.sub, PRACTICE_PER_SUB);
   const label = S.sub==="ALL" ? "All subtests" : SLABEL[S.sub];
   startRunner(BLABEL[S.b]+" · Tier "+S.t+" · "+label, qs, {});
 }
 function launchBrowseOne(){
-  S.browseData={title:BLABEL[S.b]+" · Tier "+S.t+" · "+(S.sub==="ALL"?"All subtests":SLABEL[S.sub]),
-    qs: S.sub==="ALL" ? BSUB[S.b].reduce((acc,s)=>acc.concat(tagList(DRILLS[S.b][S.t][s],s)),[]) : tagList(DRILLS[S.b][S.t][S.sub],S.sub)};
-  S.view="browse-list"; render();
+  S.browseData = {
+    title: BLABEL[S.b]+" · Tier "+S.t+" · "+(S.sub==="ALL"?"All subtests":SLABEL[S.sub]),
+    qs: S.sub==="ALL"
+      ? BSUB[S.b].reduce((acc,s) => acc.concat(tagList(DRILLS[S.b][S.t][s], s)), [])
+      : tagList(DRILLS[S.b][S.t][S.sub], S.sub)
+  };
+  S.view = "browse-list";
+  render();
 }
 
-/* ---------- BROWSE ---------- */
+/* ---------- BROWSE (adaptation — not in design; kept as-is functionally) ----------
+   Study-mode view: correct answers and explanations are always visible.
+   Index-picker (no selection) shows every subtest bank grouped by tier;
+   a detail view (browseData set) shows the questions with answers and
+   the explanation panel open by default. */
 function browseListHTML(){
   if(!S.browseData){
-    let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / Browse</div>
-    <div class="panel"><h2>Browse material</h2><p class="note">Answers and explanations are shown right away — good for studying, not testing. Each topic now has 12 questions.</p></div>`;
-    ["verbal","quant","nonverbal"].forEach(b=>{
-      [1,2,3].forEach(t=>{
-        BSUB[b].forEach(sub=>{
-          html += `<div class="lockrow"><div><span class="name">${BLABEL[b]} · Tier ${t} · ${SLABEL[sub]}</span>
-          <div class="meta">${DRILLS[b][t][sub].length} questions</div></div>
-          <button class="btn secondary" onclick="browseDirect('${b}',${t},'${sub}')">Open</button></div>`;
-        });
-      });
-    });
-    return html;
+    const groups = STRAND_ORDER.map(b => `<div class="stack-3">
+      <div class="caption" style="color:${STRAND_COLOR[b].replace("500","700")};">${BLABEL[b]} reasoning</div>
+      <div class="rowlist">
+        ${[1,2,3].flatMap(t => BSUB[b].map(sub=>`<button class="row" onclick="browseDirect('${b}',${t},'${sub}')">
+          <span class="avatar" style="background:${STRAND_COLOR[b].replace("500","100")}; border-color:${STRAND_COLOR[b]}; color:${STRAND_COLOR[b]};">${t}</span>
+          <span style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+            <span style="font-size:15px;">${SLABEL[sub]}</span>
+            <span class="small tnum" style="color:var(--neutral-700);">Tier ${t} · ${DRILLS[b][t][sub].length} questions</span>
+          </span>
+          ${ICON("arrow-right",{size:18,color:"var(--flare)"})}
+        </button>`)).join("")}
+      </div>
+    </div>`).join("");
+    return `${backRowHTML("goHome()","Today")}
+    <div class="view" style="padding:var(--space-4); gap:var(--space-6);">
+      <div class="stack-3" style="gap:var(--space-1);">
+        <div class="caption-flare">Study mode</div>
+        <h2 class="heading">Browse material</h2>
+        <div class="note">Answers and explanations show alongside each question — read straight through instead of taking a test.</div>
+      </div>
+      ${groups}
+    </div>`;
   }
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / <a onclick="S.browseData=null;render();">Browse</a> / ${S.browseData.title}</div>
-  <div class="panel"><h2>${S.browseData.title}</h2></div>`;
-  S.browseData.qs.forEach((q,i)=>{
-    html += `<div class="qcard"><div class="qnum">QUESTION ${i+1}${q._sub?" · "+SLABEL[q._sub]:""}</div><div class="qtext">${q.q}</div>`;
+  const detail = S.browseData.qs.map((q, i)=>{
+    let body;
     if(q.o){
-      html += `<div class="opts">`;
-      q.o.forEach((opt,oi)=>{ html += `<div class="opt ${oi===q.a?'correct':''}">${opt}${oi===q.a?' — correct answer':''}</div>`; });
-      html += `</div>`;
-    } else { html += `<p>Answer: <strong>${q.a}</strong></p>`; }
-    html += `<div class="expl show"><strong>Why:</strong> ${q.e}</div></div>`;
-  });
-  return html;
+      body = `<div class="opts">${q.o.map((opt, oi)=>`<div class="opt ${oi===q.a?"selected":""}">
+        <span class="letter">${optionLetter(oi)}</span>
+        <span style="flex:1;">${opt}${oi===q.a?" — correct answer":""}</span>
+      </div>`).join("")}</div>`;
+    } else {
+      body = `<div class="small"><strong>Answer:</strong> ${q.a}</div>`;
+    }
+    return `<div class="qcard">
+      <div class="caption-flare">Question ${i+1}${q._sub?` · ${SLABEL[q._sub]}`:""}</div>
+      <div class="qtext">${q.q}</div>
+      ${body}
+      <div class="expl show"><strong>Why:</strong> ${q.e}</div>
+    </div>`;
+  }).join("");
+  return `${backRowHTML("S.browseData=null;render();","Browse")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption-flare">Browse</div>
+      <h2 class="heading">${S.browseData.title}</h2>
+    </div>
+    ${detail}
+  </div>`;
 }
-function browseDirect(b,t,sub){ S.browseData={title:BLABEL[b]+" · Tier "+t+" · "+SLABEL[sub], qs:tagList(DRILLS[b][t][sub],sub)}; render(); }
+function browseDirect(b,t,sub){
+  S.browseData = {title: BLABEL[b]+" · Tier "+t+" · "+SLABEL[sub], qs: tagList(DRILLS[b][t][sub], sub)};
+  render();
+}
 
 /* ---------- RUNNER (Quiz — design screen 4) ---------- */
 // Guess which strand this question belongs to (for the caption).
@@ -1761,21 +1833,36 @@ function finishResultsToRoute(){
   S.b=null;S.t=null;S.sub=null;S.browseData=null; render();
 }
 
-/* ---------- PROGRESS (student history) ---------- */
+/* ---------- PROGRESS / MY HISTORY (adaptation — not in the design set) ----------
+   Kept because parents and students both use it in the built app.
+   Restyled with the same .ptable + caption/heading pattern used in the
+   parent area. */
 function progressHTML(){
-  const st=currentStudent();
-  let html = `<div class="crumb"><a onclick="goHome()">Dashboard</a> / My history</div>
-  <div class="panel"><h2>Practice &amp; test history</h2>`;
-  if(st.history.length===0) html += `<p class="note">No sessions yet — start with the learning path!</p>`;
-  else{
-    html += `<table class="hist"><tr><th>Date</th><th>Session</th><th>Type</th><th>Score</th></tr>`;
-    st.history.slice(0,50).forEach(h=>{
-      html += `<tr><td>${new Date(h.date).toLocaleDateString()}</td><td>${h.title}</td><td>${h.kind}</td><td>${h.correct}/${h.total}</td></tr>`;
-    });
-    html += `</table>`;
-  }
-  html += `</div>`;
-  return html;
+  const st = currentStudent();
+  const rows = (st.history || []).slice(0, 50).map(h=>{
+    const pct = h.total > 0 ? Math.round(100 * h.correct / h.total) : 0;
+    return `<tr>
+      <td class="tnum">${new Date(h.date).toLocaleDateString()}</td>
+      <td class="ellipsis">${h.title}</td>
+      <td><span class="caption" style="color:var(--neutral-700);">${h.kind}</span></td>
+      <td class="num">${h.correct}/${h.total}</td>
+      <td class="num">${pct}%</td>
+    </tr>`;
+  }).join("");
+  const table = st.history.length === 0
+    ? `<p class="note">No sessions yet — head to Today and begin the route.</p>`
+    : `<table class="ptable"><thead><tr>
+        <th>Date</th><th>Session</th><th>Type</th><th class="num">Score</th><th class="num">%</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
+  return `${backRowHTML("goHome()","Today")}
+  <div class="view" style="padding:var(--space-4); gap:var(--space-4);">
+    <div class="stack-3" style="gap:var(--space-1);">
+      <div class="caption-flare">My history</div>
+      <h2 class="heading">Practice &amp; test history</h2>
+      <div class="note">Every session you've finished, newest first. Only the last 50 are shown.</div>
+    </div>
+    ${table}
+  </div>`;
 }
 
 /* ---------- BOARD (Effort board) ---------- */
