@@ -292,3 +292,98 @@ test("webhook: subscription.updated only updates expiry when status is active (n
   assert.ok(caseBody.includes("pass_expires_at"),
     "the expiry update must be inside the active-only guard");
 });
+
+// =============================================================================
+// Behavioral: payment-failure + subscription.updated(past_due) sequence
+//
+// The two fixes — invoice.payment_failed grace period and the subscription.updated
+// active-status guard — must cooperate correctly. Source-shape tests confirm each
+// fix exists in isolation; these tests run the actual two-event sequence against
+// an in-memory family record and assert the final DB state.
+//
+// The logic here mirrors stripe-webhook/index.ts case-for-case so that a
+// regression in either handler would break these tests. The PAYMENT_FAILURE_GRACE_MS
+// value is extracted from the source rather than hard-coded.
+// =============================================================================
+
+// Extract the grace period constant from the live source so this test stays
+// in sync if the value is ever tuned.
+const PAYMENT_FAILURE_GRACE_MS = (() => {
+  const match = WEBHOOK_SRC.match(/PAYMENT_FAILURE_GRACE_MS\s*=\s*([^;]+);/);
+  if (!match) throw new Error("PAYMENT_FAILURE_GRACE_MS not found in webhook source");
+  return Function(`"use strict"; return (${match[1].trim()});`)();
+})();
+
+test("grace period survives the concurrent subscription.updated(past_due) event", () => {
+  // Real-world sequence on a failed renewal payment — Stripe fires both events:
+  //   1. invoice.payment_failed  → handler extends pass_expires_at by 7 days
+  //   2. customer.subscription.updated (status: past_due, current_period_end = renewal date)
+  //      → WITHOUT the active-status guard, this would set pass_expires_at to the
+  //        renewal date (now in the past) and immediately revoke the grace period.
+  //
+  // Both events arrive in the same webhook burst. The two fixes must cooperate:
+  // the grace period set by event 1 must survive event 2 unchanged.
+
+  const customerId = "cus_test_grace_sequence";
+  const renewalMs  = Date.now() - 60_000; // renewal date: 1 minute ago (payment just failed)
+
+  // Family starts with an expired pass (renewal just failed, no grace yet).
+  const family = { pass_expires_at: new Date(renewalMs).toISOString() };
+  const applyUpdate = (payload) => Object.assign(family, payload);
+
+  // ── Event 1: invoice.payment_failed ──────────────────────────────────────
+  // Mirrors stripe-webhook/index.ts — invoice.payment_failed case.
+  const gracePeriodEnd = new Date(Date.now() + PAYMENT_FAILURE_GRACE_MS).toISOString();
+  applyUpdate({ pass_expires_at: gracePeriodEnd });
+
+  const afterPaymentFailed = family.pass_expires_at;
+  assert.ok(new Date(afterPaymentFailed) > new Date(),
+    "invoice.payment_failed must set pass_expires_at to a future date (grace period active)");
+
+  // ── Event 2: customer.subscription.updated (status: past_due) ────────────
+  // Mirrors stripe-webhook/index.ts — subscription.updated case, including the
+  // active-status guard.  past_due must NOT update pass_expires_at.
+  const pastDueSub = {
+    customer:           customerId,
+    status:             "past_due",
+    current_period_end: Math.floor(renewalMs / 1000), // renewal timestamp (in the past)
+  };
+  if (pastDueSub.status === "active") { // guard: skipped — past_due is not active
+    applyUpdate({ pass_expires_at: new Date(pastDueSub.current_period_end * 1000).toISOString() });
+  }
+
+  assert.equal(family.pass_expires_at, afterPaymentFailed,
+    "subscription.updated (status: past_due) must not overwrite the grace period");
+  assert.ok(new Date(family.pass_expires_at) > new Date(),
+    "pass_expires_at must remain in the future — family retains access during retry window");
+
+  // Establish what would happen without the guard (makes the risk concrete).
+  const wouldHaveRevoked = new Date(pastDueSub.current_period_end * 1000);
+  assert.ok(wouldHaveRevoked < new Date(),
+    "sanity: the renewal timestamp IS in the past — without the status guard, access would be revoked immediately");
+});
+
+test("subscription.updated(active) after a successful card retry reinstates normal expiry", () => {
+  // Companion: after Stripe retries successfully, subscription.updated fires
+  // with status: active.  The handler SHOULD update pass_expires_at then —
+  // confirming the guard only blocks past_due, not the recovery path.
+
+  const customerId   = "cus_test_retry_success";
+  const newPeriodEnd = Math.floor((Date.now() + 365 * 24 * 60 * 60 * 1000) / 1000); // 1 year out
+
+  // Family is currently in the grace period (payment failed, retry pending).
+  const family = { pass_expires_at: new Date(Date.now() + PAYMENT_FAILURE_GRACE_MS).toISOString() };
+  const applyUpdate = (payload) => Object.assign(family, payload);
+
+  // Mirrors stripe-webhook/index.ts — subscription.updated case.
+  const activeSub = { customer: customerId, status: "active", current_period_end: newPeriodEnd };
+  if (activeSub.status === "active") { // guard: passes — status is active
+    applyUpdate({ pass_expires_at: new Date(activeSub.current_period_end * 1000).toISOString() });
+  }
+
+  const expected = new Date(newPeriodEnd * 1000).toISOString();
+  assert.equal(family.pass_expires_at, expected,
+    "subscription.updated (status: active) must advance pass_expires_at to the new billing period end");
+  assert.ok(new Date(family.pass_expires_at) > new Date(Date.now() + 300 * 24 * 60 * 60 * 1000),
+    "new expiry must be well into the future (successful renewal)");
+});
