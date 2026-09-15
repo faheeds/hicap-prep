@@ -39,6 +39,9 @@ need reshaping once the `level` key exists.
 1. Work `docs/PRODUCT_BACKLOG.md` **in priority order, one epic at a time.** Don't
    jump ahead to a later epic because it looks more interesting — later epics
    depend on earlier ones (Epic 1's backend gates almost everything after it).
+   Exception: Epic 4 has no real dependency on Epic 3 and can be done first if
+   visual progress matters more than finishing payments — this was a deliberate
+   reorder, not a mistake to correct.
 2. Within an epic, do the rows in the order listed.
 3. Before starting an epic, re-read its rows and the "Notes for Claude Code" column
    — that's a starting technical pointer, not a rigid spec; use judgment.

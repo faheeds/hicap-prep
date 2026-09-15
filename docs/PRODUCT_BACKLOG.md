@@ -10,8 +10,8 @@ This is written to be fed directly to Claude Code, one epic (or even one row) at
 ### Recommended build order (the short version)
 1. **E1 — Backend & real accounts** (everything else depends on this)
 2. **E2 — Compliance** (must ship alongside E1, not after — it's a launch blocker, not a checkbox)
-3. **E3 — Payments & paywall**
-4. **E4 — Paid-launch product gaps** (onboarding, security hardening, testing, naming decision)
+3. **E4 — Paid-launch product gaps** (onboarding, security hardening, testing, naming decision, UI rebuild) — deliberately pulled ahead of E3 because none of its rows depend on payments and shipping visible progress matters more right now than finishing the paywall first
+4. **E3 — Payments & paywall**
 5. **E5 — Multi-grade content expansion, Grades 3–11** (this is what makes the Family Pass promise — "one price, every kid in the house" — actually true; see `docs/BUSINESS_PLAN.md` §3/§5)
 6. **E6 — Growth & analytics**
 7. **E7 — B2B / district & tutor licensing**
