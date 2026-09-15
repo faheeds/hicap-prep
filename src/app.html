@@ -736,7 +736,12 @@ const COLORS=["#3B6E5E","#A6432E","#C98A2C","#4A6FA5","#7A4E9E"];
 // so they aren't parent-facing options here (see Epic 5 preamble in
 // docs/PRODUCT_BACKLOG.md). Grade 1 uses Level 8 (picture-based, Epic 9);
 // grades 3-11 use levels 9-17.
-const GRADE_OPTIONS = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+// Temporary restriction: only grade 7 (CogAT Level 13) is offered. Every other
+// grade in the eventual full range (1, 3-11) currently has no content bank —
+// picking grade 4 or 9 today would silently serve grade-7 questions, which
+// misleads the parent. See docs/PRODUCT_BACKLOG.md E5-0: once real
+// multi-grade content ships, restore this to [1, 3, 4, 5, 6, 7, 8, 9, 10, 11].
+const GRADE_OPTIONS = [7];
 const GRADE_TO_LEVEL = {1:8, 3:9, 4:10, 5:11, 6:12, 7:13, 8:14, 9:15, 10:16, 11:17};
 function gradeToLevel(g){ return GRADE_TO_LEVEL[g] || 13; }
 function gradeLabel(g){ return g === 1 ? "Grade 1" : "Grade " + g; }
@@ -1381,7 +1386,7 @@ function rosterHTML(){
             `<button type="button" class="${S.newGrade===g?"sel":""}" onclick="S.newGrade=${g};render();" aria-selected="${S.newGrade===g}">${g}</button>`
           ).join("")}
         </div>
-        <div class="note">${gradeLabel(S.newGrade)} · CogAT Level ${gradeToLevel(S.newGrade)}${S.newGrade===7?"" : " (content bank ships in Epic 5)"}</div>
+        <div class="note">${gradeLabel(S.newGrade)} · CogAT Level ${gradeToLevel(S.newGrade)}. Grades 1 and 3–11 are on the roadmap; only grade 7 has a content bank so far.</div>
       </div>
       <div class="field">
         <label>Avatar</label>
