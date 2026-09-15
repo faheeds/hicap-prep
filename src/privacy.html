@@ -135,12 +135,16 @@
 
   <h2>6. Data retention</h2>
   <p>Family data stays on our systems as long as the family is actively
-    using the app. If a family's account has been inactive (no sign-in and
-    no practice sessions) for <strong>18 months</strong>, we mark the
-    account for deletion and — once we've integrated email notifications
-    — will send a warning to the parent's email at least 60 days before
-    the deletion runs. Deletion is a hard delete: every row belonging to
-    the family, including the parent's auth account, is removed.</p>
+    using the app. "Active" means either the parent has signed in or one
+    of the kids has finished a practice session. If a family goes
+    inactive for <strong>17 months</strong>, our nightly job marks the
+    account as pending deletion. If the family is still inactive
+    <strong>60 days after that</strong> (so 19 months from last
+    activity), the account is hard-deleted — every row belonging to the
+    family, including the parent's auth account, is removed. Once we've
+    integrated email delivery, we'll send a warning to the parent's
+    email at the moment the account is first marked, so you have the
+    full 60-day window to sign back in if you want to keep the data.</p>
 
   <h2>7. Deleting your family's data</h2>
   <p>Sign in as the parent → Parent area → Settings → "Delete my family's

@@ -66,6 +66,20 @@ test("RLS policies exist on every table and every one references auth.uid()", ()
   }
 });
 
+test("retention: 18-month deletion window is composed of a 17-month warn + 60-day grace", () => {
+  const sql = readAllMigrations();
+  // Backlog acceptance for E2-5: "auto-delete inactive family data after
+  // 18 months, with a warning email first." The 17-month warn is the
+  // trigger point and the 60-day grace pushes the actual delete out past
+  // 18 months without needing to name that number literally.
+  assert.match(sql, /interval '17 months'/, "retention warning window must be 17 months");
+  assert.match(sql, /interval '60 days'/, "grace period between warning and delete must be 60 days");
+  assert.match(sql, /retention_warned_at\s+timestamptz/i, "families needs a retention_warned_at column");
+  assert.match(sql, /cron\.schedule\(\s*'hicap-retention-warn'/i, "warning job must be scheduled");
+  assert.match(sql, /cron\.schedule\(\s*'hicap-retention-delete'/i, "delete job must be scheduled");
+  assert.match(sql, /cron\.schedule\(\s*'hicap-retention-clear'/i, "clear-warning job must be scheduled");
+});
+
 test("students/attempts/badges policies scope to caller's own family_id, not any family", () => {
   const sql = readAllMigrations();
   // A policy that forgets the family-owner subselect would let a signed-in
