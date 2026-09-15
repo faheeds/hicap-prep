@@ -56,3 +56,25 @@ test("a new auth user gets a families row via trigger", () => {
   assert.match(sql, /create trigger on_auth_user_created/i);
   assert.match(sql, /handle_new_user/i);
 });
+
+test("RLS policies exist on every table and every one references auth.uid()", () => {
+  const sql = readAllMigrations();
+  // At minimum, every user-visible table needs a SELECT policy tied to auth.uid().
+  for (const tbl of ["families", "students", "attempts", "badges_earned"]) {
+    const re = new RegExp(`create policy [\\w_]+ on public\\.${tbl}[\\s\\S]*?auth\\.uid\\(\\)`, "i");
+    assert.match(sql, re, `${tbl} needs a policy keyed on auth.uid()`);
+  }
+});
+
+test("students/attempts/badges policies scope to caller's own family_id, not any family", () => {
+  const sql = readAllMigrations();
+  // A policy that forgets the family-owner subselect would let a signed-in
+  // parent read *any* row — catch that pattern by requiring the owner check.
+  const familyScoped = /family_id in \(select id from public\.families where owner_id = auth\.uid\(\)\)/gi;
+  const matches = sql.match(familyScoped) || [];
+  // 3 tables (students/attempts/badges_earned), roughly ~3 policies each = at
+  // least 6 uses. Not a hard count, but a low bar that catches "forgot the
+  // subselect on one policy" mistakes.
+  assert.ok(matches.length >= 6,
+    `expected family-scoped subselect to appear on many policies, saw ${matches.length}`);
+});
