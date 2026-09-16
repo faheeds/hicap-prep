@@ -245,15 +245,15 @@ test("effectiveLevel(13) returns 13 (bank exists, no warn)", () => {
   }
 });
 
-test("effectiveLevel(11) falls back to 13 AND emits a console.warn", () => {
+test("effectiveLevel(12) falls back to 13 AND emits a console.warn", () => {
   const warns = [];
   const orig = window.console.warn;
   window.console.warn = (...args) => warns.push(args.join(" "));
   try {
-    const result = window.effectiveLevel(11);
+    const result = window.effectiveLevel(12);
     assert.equal(result, 13, "must return 13 as the fallback level");
     assert.equal(warns.length, 1, "must emit exactly one warning");
-    assert.ok(warns[0].includes("11"), "warning must mention the requested level");
+    assert.ok(warns[0].includes("12"), "warning must mention the requested level");
     assert.ok(warns[0].includes("13"), "warning must mention the fallback level being served");
     assert.ok(warns[0].toLowerCase().includes("fallback") || warns[0].toLowerCase().includes("no content"),
       "warning text must make the situation clear");
@@ -267,10 +267,10 @@ test("sampleQuestions with a missing level fires a warn and falls back gracefull
   const orig = window.console.warn;
   window.console.warn = (...args) => warns.push(args.join(" "));
   try {
-    const qs = window.sampleQuestions(11, "verbal", 1, "SC", 5);
+    const qs = window.sampleQuestions(12, "verbal", 1, "SC", 5);
     assert.equal(qs.length, 5, "should still return 5 questions via fallback to level 13");
-    assert.ok(warns.some(w => w.includes("11")),
-      "at least one warning must reference level 11");
+    assert.ok(warns.some(w => w.includes("12")),
+      "at least one warning must reference level 12");
   } finally {
     window.console.warn = orig;
   }
@@ -287,4 +287,65 @@ test("effectiveLevel(9999) falls back to 13 with a warning", () => {
   } finally {
     window.console.warn = orig;
   }
+});
+
+// ---------------------------------------------------------------------------
+// Level 11 (Grade 5) verbal pilot — real content, not stub
+// ---------------------------------------------------------------------------
+
+test("effectiveLevel(11) returns 11 — bank now exists (no warn)", () => {
+  const warns = [];
+  const orig = window.console.warn;
+  window.console.warn = (...args) => warns.push(args.join(" "));
+  try {
+    assert.equal(window.effectiveLevel(11), 11,
+      "effectiveLevel must return 11 now that DRILLS[11] exists");
+    assert.equal(warns.length, 0, "must NOT warn when the bank exists");
+  } finally {
+    window.console.warn = orig;
+  }
+});
+
+test("sampleQuestions(11, verbal, 1, SC, 5) serves real Level-11 content", () => {
+  const qs = window.sampleQuestions(11, "verbal", 1, "SC", 5);
+  assert.equal(qs.length, 5);
+  // Level-13 SC questions use vocabulary like "erudite"/"perfidious"; Level-11 SC
+  // questions contain simpler stems (e.g. "puppy", "cookies"). The reliable check
+  // is that none of the returned questions are from level-13 stems by verifying
+  // the pool is distinct — easiest via the question stem text itself.
+  // Every Level-11 SC stem ends with a blank ("___").
+  for (const q of qs) {
+    assert.ok(q.q.includes("___"), `Level-11 SC stem must contain a blank: "${q.q}"`);
+    assert.ok(q._sub === "SC", "question must be tagged SC");
+  }
+});
+
+test("sampleQuestions(11, verbal, 1, VC, 5) serves real Level-11 VC content", () => {
+  const qs = window.sampleQuestions(11, "verbal", 1, "VC", 5);
+  assert.equal(qs.length, 5);
+  for (const q of qs) {
+    assert.ok(q.q.includes("— which belongs?"), `Level-11 VC stem must follow the classification format: "${q.q}"`);
+    assert.ok(q._sub === "VC", "question must be tagged VC");
+  }
+});
+
+test("sampleQuestions(11, verbal, 1, VA, 5) serves real Level-11 VA content", () => {
+  const qs = window.sampleQuestions(11, "verbal", 1, "VA", 5);
+  assert.equal(qs.length, 5);
+  for (const q of qs) {
+    assert.ok(q.q.includes("is to") && q.q.includes("___?"),
+      `Level-11 VA stem must follow analogy format: "${q.q}"`);
+    assert.ok(q._sub === "VA", "question must be tagged VA");
+  }
+});
+
+test("collectQuestions(11, verbal, 1, ALL, 10) returns 30 real Level-11 questions", () => {
+  const qs = window.collectQuestions(11, "verbal", 1, "ALL", 10);
+  assert.equal(qs.length, 30, "3 verbal subtests × 10 = 30");
+  const sc = qs.filter(q => q._sub === "SC");
+  const vc = qs.filter(q => q._sub === "VC");
+  const va = qs.filter(q => q._sub === "VA");
+  assert.equal(sc.length, 10, "10 SC questions");
+  assert.equal(vc.length, 10, "10 VC questions");
+  assert.equal(va.length, 10, "10 VA questions");
 });
