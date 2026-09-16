@@ -121,6 +121,34 @@ need reshaping once the `level` key exists.
   current app works fine as vanilla JS and there's no reason to add build
   tooling just for its own sake.
 
+## Done means done — self-check before marking any row ✅
+
+Before reporting any row or epic as done, answer all of the following unprompted.
+Do not wait to be asked. If any answer is "no" or "unverified," fix or verify it
+before moving to the next row — don't let it ride to the end of the epic.
+
+1. **Security/permissions (RLS, entitlement columns, auth-gating):** Did you write
+   a test that *attempts the wrong action* and confirms it is rejected — not just a
+   test that the right action succeeds? A passing "owner can read their row" test
+   says nothing about whether a different user can also read it.
+
+2. **Real external infrastructure (email, webhooks, cron, analytics, payments):**
+   Has this feature been exercised against a live system, or only code-reviewed?
+   State explicitly which, per feature. "The code looks correct" is not
+   verification. "I sent a test email and received it" is.
+
+3. **Silent fallbacks and degraded modes:** If something is missing (config not
+   set, content not authored, network unavailable), does the app log or warn
+   visibly, or fail silently? Silent failures hide bugs in production. If the
+   fallback is silent, either make it loud or document the exact condition under
+   which it fires.
+
+4. **UI-driven interaction (keypad, drag, multi-step state, form submission):** Has
+   it been tested via simulated real user interaction — clicking actual DOM
+   elements in jsdom, or verified manually in a browser — not just by setting
+   internal state directly and asserting the resulting data? State changes
+   triggered by code bypass the event handlers that real users go through.
+
 ## Testing
 
 `npm test` runs `tests/*.test.mjs` via Node's built-in test runner + jsdom. This

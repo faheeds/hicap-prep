@@ -923,6 +923,36 @@ async function loadApp(){
   if(STORE){ try{ return await STORE.load(); }catch(e){ console.error("Store.load failed", e); return defaultApp(); } }
   return defaultApp();
 }
+
+// Apply org CSS theme overrides (E7-4). Only tokens from a strict whitelist
+// are injected — any key not on the list is silently dropped and logged.
+// Call this after APP is populated. Passing null/undefined is a no-op (logged).
+const ORG_THEME_WHITELIST = new Set(["--flare","--lagoon","--violet","--ink","--bg"]);
+function applyOrgTheme(overrides){
+  if(!overrides || typeof overrides !== "object"){
+    if(overrides !== null && overrides !== undefined){
+      console.warn("applyOrgTheme: overrides is not an object — no theme applied");
+    } else {
+      console.log("applyOrgTheme: no overrides (null) — using default theme");
+    }
+    return;
+  }
+  const root = typeof document !== "undefined" && document.documentElement;
+  if(!root) return;
+  let applied = 0, skipped = 0;
+  for(const [key, val] of Object.entries(overrides)){
+    if(!ORG_THEME_WHITELIST.has(key)){
+      console.warn(`applyOrgTheme: skipping non-whitelisted token "${key}"`);
+      skipped++;
+      continue;
+    }
+    root.style.setProperty(key, String(val));
+    applied++;
+  }
+  if(applied === 0 && skipped === 0){
+    console.log("applyOrgTheme: overrides object was empty — no tokens applied");
+  }
+}
 function saveApp(){
   if(!STORE) return;
   // Fire-and-forget: the cloud path is async but the app's render loop
@@ -951,7 +981,9 @@ let S = {mode:"student", view:"roster",
   // of truth; render mirrors it onto the hidden #pinInput's value attribute
   // for keyboard/AT users and for the pre-Epic-4 test path that writes to
   // #pinInput.value directly.
-  pinErr:"", pinBuffer:""};
+  pinErr:"", pinBuffer:"",
+  orgStats: null, orgStatsLoading: false,
+  orgCsvPreview: null, orgRosterImporting: false, orgRosterResult: null};
 
 function currentStudent(){ return CUR ? APP.students[CUR] : null; }
 
@@ -2680,6 +2712,157 @@ async function openBillingPortal(){
   }catch(e){ showAlert("Could not reach the server."); }
 }
 
+// Parse a CSV text into {valid:[{name,grade}], errors:[{line,reason}]}.
+// Expected columns (with or without a header row): name, grade.
+// Blank lines are skipped. Invalid grades (non-integer or outside 1–12) are errors.
+function parseOrgCsv(text){
+  const valid = [], errors = [];
+  const lines = text.split(/\r?\n/);
+  let lineNum = 0;
+  for(const raw of lines){
+    lineNum++;
+    const trimmed = raw.trim();
+    if(!trimmed) continue;
+    const cols = trimmed.split(",").map(c => c.trim().replace(/^"|"$/g,"").trim());
+    const [col0, col1] = cols;
+    // Skip header row if it looks like a label (contains "name" or "grade" literally).
+    if(/^name$/i.test(col0) || /^grade$/i.test(col0 || "")) continue;
+    const name = col0 || "";
+    const gradeRaw = col1 || "";
+    if(!name){ errors.push({line: lineNum, reason: "missing student name"}); continue; }
+    const grade = parseInt(gradeRaw, 10);
+    if(!gradeRaw || isNaN(grade) || grade < 1 || grade > 12){
+      errors.push({line: lineNum, reason: `invalid grade "${gradeRaw}" — must be 1–12`}); continue;
+    }
+    valid.push({name, grade});
+  }
+  return {valid, errors};
+}
+
+// Org dashboard section (E7-2/E7-3). Rendered inside parentHomeHTML() only
+// when the signed-in user owns an org (APP.ownedOrg is non-null).
+function orgDashboardSectionHTML(){
+  if(!CLOUD || !APP.ownedOrg) return "";
+  const org = APP.ownedOrg;
+  const expiryStr = org.seat_expires_at
+    ? new Date(org.seat_expires_at).toLocaleDateString()
+    : "No expiry";
+  const seatStr = (org.seat_count || 0) > 0
+    ? `${org.seat_count} seat${org.seat_count !== 1 ? "s" : ""}`
+    : "Unlimited seats";
+
+  let statsHTML = "";
+  if(S.orgStatsLoading){
+    statsHTML = `<p class="note">Loading…</p>`;
+  } else if(S.orgStats){
+    const d = S.orgStats;
+    const seatsInUse = d.seats_in_use || 0;
+    const families = d.families || [];
+    const tableRows = families.map((f, i) => {
+      const acc = f.accuracy_pct != null ? `${f.accuracy_pct}%` : "—";
+      const last = f.last_active ? new Date(f.last_active).toLocaleDateString() : "—";
+      return `<tr>
+        <td>Family ${i + 1}</td>
+        <td class="num">${f.student_count}</td>
+        <td class="num">${f.attempt_count}</td>
+        <td class="num">${acc}</td>
+        <td class="num">${last}</td>
+      </tr>`;
+    }).join("");
+    statsHTML = `
+      <div class="note">${seatsInUse} of ${org.seat_count || "∞"} seats in use</div>
+      ${families.length === 0
+        ? `<p class="note">No families linked yet.</p>`
+        : `<div style="overflow-x:auto;"><table class="ptable"><thead><tr>
+            <th>Family</th><th class="num">Students</th><th class="num">Sessions</th><th class="num">Accuracy</th><th class="num">Last active</th>
+          </tr></thead><tbody>${tableRows}</tbody></table></div>`}`;
+  } else {
+    statsHTML = `<button class="btn btn-secondary" onclick="loadOrgStats()">Load usage stats</button>`;
+  }
+
+  // Roster import section (E7-3).
+  let rosterHTML = "";
+  if(S.orgRosterImporting){
+    rosterHTML = `<p class="note">Uploading…</p>`;
+  } else if(S.orgRosterResult){
+    const r = S.orgRosterResult;
+    const errLines = (r.errors || []).map(e =>
+      `<li class="note" style="color:var(--flare-700);">Row ${e.row}: ${_attrEsc(String(e.reason))}</li>`
+    ).join("");
+    rosterHTML = `
+      <div class="note">Imported ${r.inserted} student${r.inserted !== 1 ? "s" : ""}.</div>
+      ${errLines ? `<ul style="margin:0;padding-left:var(--space-4);">${errLines}</ul>` : ``}
+      <button class="btn btn-ghost" onclick="S.orgRosterResult=null;render();">Import another file</button>`;
+  } else if(S.orgCsvPreview){
+    const p = S.orgCsvPreview;
+    const errLines = (p.errors || []).map(e =>
+      `<li class="note" style="color:var(--flare-700);">Line ${e.line}: ${_attrEsc(e.reason)}</li>`
+    ).join("");
+    rosterHTML = `
+      <div class="note">${p.valid.length} valid row${p.valid.length !== 1 ? "s" : ""} ready to import${p.errors.length ? `, ${p.errors.length} error${p.errors.length !== 1 ? "s" : ""}` : ""}.</div>
+      ${errLines ? `<ul style="margin:0;padding-left:var(--space-4);">${errLines}</ul>` : ``}
+      <div class="row-actions">
+        ${p.valid.length > 0 ? `<button class="btn btn-primary" onclick="submitOrgRosterImport()">Import ${p.valid.length} student${p.valid.length !== 1 ? "s" : ""}</button>` : ``}
+        <button class="btn btn-ghost" onclick="S.orgCsvPreview=null;render();">Cancel</button>
+      </div>`;
+  } else {
+    rosterHTML = `
+      <div class="note">Upload a CSV with two columns — <strong>name</strong> and <strong>grade</strong> (1–12). One student per row.</div>
+      <label class="btn btn-secondary" style="cursor:pointer;">
+        Choose CSV file
+        <input type="file" accept=".csv,text/csv" style="display:none;" onchange="handleOrgCsvFile(this)">
+      </label>`;
+  }
+
+  return `<div class="stack-3">
+    <div class="caption">Org dashboard — ${_attrEsc(org.name)}</div>
+    <div class="note">${seatStr} · expires ${expiryStr}</div>
+    ${statsHTML}
+  </div>
+  <div class="stack-3">
+    <div class="caption">Roster import</div>
+    ${rosterHTML}
+  </div>`;
+}
+
+async function loadOrgStats(){
+  if(!STORE || !APP.ownedOrg){ return; }
+  S.orgStatsLoading = true;
+  render();
+  const stats = await STORE.loadOrgStats(APP.ownedOrg.id);
+  S.orgStats = stats;
+  S.orgStatsLoading = false;
+  if(!stats) console.warn("loadOrgStats: no data returned — verify org ownership and that migration 20260914001400 is applied");
+  render();
+}
+
+function handleOrgCsvFile(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = parseOrgCsv(e.target.result);
+    S.orgCsvPreview = parsed;
+    render();
+  };
+  reader.readAsText(file);
+}
+
+async function submitOrgRosterImport(){
+  if(!STORE || !APP.ownedOrg || !S.orgCsvPreview || S.orgCsvPreview.valid.length === 0) return;
+  const rows = S.orgCsvPreview.valid;
+  S.orgRosterImporting = true;
+  S.orgCsvPreview = null;
+  render();
+  const result = await STORE.importOrgRoster(APP.ownedOrg.id, rows);
+  S.orgRosterImporting = false;
+  S.orgRosterResult = result;
+  if(result && result.errors && result.errors.length > 0){
+    console.warn("importOrgRoster: some rows failed:", result.errors);
+  }
+  render();
+}
+
 function parentHomeHTML(){
   const list = Object.values(APP.students);
   const mockLaunchers = MOCK_DEFS.map(m=>{
@@ -2742,6 +2925,7 @@ function parentHomeHTML(){
     </div>
     ${parentPlanHTML()}
     ${CLOUD && APP.referralCode ? referralSectionHTML() : ``}
+    ${orgDashboardSectionHTML()}
     <div class="stack-3">
       <div class="caption">Delete family data</div>
       <div class="note">Permanently removes every kid on your roster and their entire history. This can't be undone.</div>
@@ -3220,19 +3404,20 @@ function mountAnalyticsBanner(){
     // no consent, no students, no PIN hash. Signing out resets to a clean
     // defaultApp() so the next signed-in user doesn't inherit any state.
     AUTH.onChange(async (session)=>{
-      if(session){ APP = await loadApp(); }
+      if(session){ APP = await loadApp(); applyOrgTheme(APP.orgThemeOverrides || null); }
       else { APP = defaultApp(); CUR = null; }
       render();
     });
   }
   APP = await loadApp();
+  applyOrgTheme(APP.orgThemeOverrides || null);
 
   // If we're returning from a successful Stripe Checkout, reload from the DB
   // (the webhook may have already updated the entitlement) and show a receipt.
   if(typeof location!=="undefined" && location.search.includes("stripe_success=1")){
     if(typeof history!=="undefined") history.replaceState({}, "", location.pathname);
     if(CLOUD && STORE){
-      try{ APP = await STORE.load(); }catch(e){ /* proceed with loaded state */ }
+      try{ APP = await STORE.load(); applyOrgTheme(APP.orgThemeOverrides || null); }catch(e){ /* proceed with loaded state */ }
     }
     showAlert("Payment successful — your pass is now active. Thank you!");
   }

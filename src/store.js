@@ -165,18 +165,25 @@
 
     const { data: fam, error: famErr } = await supabase
       .from("families")
-      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in, pass_type, pass_expires_at, pass_student_id, stripe_customer_id, stripe_subscription_id, referral_code, referred_by, referred_count")
+      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in, pass_type, pass_expires_at, pass_student_id, stripe_customer_id, stripe_subscription_id, referral_code, referred_by, referred_count, organization_id")
       .eq("owner_id", userId)
       .maybeSingle();
     if (famErr) { console.error("families load failed", famErr); return defaultApp(); }
     if (!fam) return defaultApp(); // trigger should have created one; fall back safely
 
-    const [{ data: students, error: sErr }, { data: attempts, error: aErr }] = await Promise.all([
+    const [{ data: students, error: sErr }, { data: attempts, error: aErr }, { data: ownedOrg }, { data: memberOrg }] = await Promise.all([
       supabase.from("students").select("*").eq("family_id", fam.id).order("created_at"),
       supabase.from("attempts")
         .select("*").eq("family_id", fam.id)
         .order("taken_at", { ascending: false })
         .limit(ATTEMPTS_LIMIT),
+      // Check if this user owns any org (for the org dashboard in parent home).
+      supabase.from("my_owned_orgs").select("id, name, slug, seat_count, seat_expires_at, theme_overrides").maybeSingle(),
+      // Fetch the org this family is a member of (for theme_overrides). If the user
+      // owns the org, ownedOrg already has theme_overrides; this covers member families.
+      fam.organization_id
+        ? supabase.from("organizations").select("theme_overrides").eq("id", fam.organization_id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
     if (sErr) console.error("students load failed", sErr);
     if (aErr) console.error("attempts load failed", aErr);
@@ -222,6 +229,10 @@
       referredBy: fam.referred_by || null,
       referredCount: fam.referred_count || 0,
       students: studentsById,
+      ownedOrg: ownedOrg || null,
+      // Theme overrides: owner gets them from ownedOrg; member families from memberOrg.
+      // Null when the family has no org link (most families).
+      orgThemeOverrides: (ownedOrg && ownedOrg.theme_overrides) || (memberOrg && memberOrg.theme_overrides) || null,
     };
   }
 
@@ -320,6 +331,45 @@
   // Public interface. The `newId()` helper lets callers create fresh
   // students/attempts with an id that's valid in either mode.
   // ------------------------------------------------------------------------
+  // Load aggregate stats for an org the signed-in user owns.
+  // Returns the jsonb payload from get_org_stats(), or null on error.
+  async function loadOrgStats(orgId) {
+    if (!hicap.isCloud) return null;
+    const supabase = await hicap.getSupabase();
+    if (!supabase) return null;
+    const { data, error } = await supabase.rpc("get_org_stats", { p_org_id: orgId });
+    if (error) {
+      console.warn("loadOrgStats failed:", error.message);
+      return null;
+    }
+    return data;
+  }
+
+  // Import a parsed roster (array of {name, grade}) into org_roster_entries.
+  // Returns {inserted, errors} — errors contains rows that failed with reasons.
+  async function importOrgRoster(orgId, rows) {
+    if (!hicap.isCloud) return { inserted: 0, errors: rows.map((r, i) => ({ row: i + 1, reason: "cloud mode required" })) };
+    const supabase = await hicap.getSupabase();
+    if (!supabase) return { inserted: 0, errors: [] };
+
+    const toInsert = rows.map((r) => ({
+      organization_id: orgId,
+      student_first_name: r.name,
+      student_grade: r.grade,
+    }));
+
+    const { data, error } = await supabase
+      .from("org_roster_entries")
+      .insert(toInsert)
+      .select("id");
+
+    if (error) {
+      console.warn("importOrgRoster failed:", error.message);
+      return { inserted: 0, errors: [{ row: "all", reason: error.message }] };
+    }
+    return { inserted: (data || []).length, errors: [] };
+  }
+
   const Store = {
     isCloud: !!hicap.isCloud,
     newId() { return newRowId(); },
@@ -327,6 +377,8 @@
     async save(app) { return hicap.isCloud ? await saveCloud(app) : saveLocal(app); },
     async saveConsent(app) { return await saveConsent(app); },
     async saveEmailPreference(app, optIn) { return await saveEmailPreference(app, optIn); },
+    async loadOrgStats(orgId) { return await loadOrgStats(orgId); },
+    async importOrgRoster(orgId, rows) { return await importOrgRoster(orgId, rows); },
   };
 
   hicap.Store = Store;
