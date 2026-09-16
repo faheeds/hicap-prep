@@ -84,6 +84,14 @@ need reshaping once the `level` key exists.
   version strictly greater than the highest present. Do not guess the next
   number from the pattern of a few recent files — collisions have happened
   twice this way.
+- **GRADE_OPTIONS and DRILLS banks must ship together, never the picker first.**
+  `GRADE_OPTIONS` in `src/app.html` must only contain a grade if `DRILLS[gradeToLevel(grade)]`
+  already exists and is fully populated (all 9 subtests × 3 tiers × 20 questions). Adding a grade
+  to the picker without its bank causes real students to receive level-13 content silently —
+  `effectiveLevel()`'s fallback only emits a `console.warn` that nobody in production is watching.
+  The fallback exists to prevent crashes during development and testing; it is not a
+  graceful-degradation strategy for real users. Expanding the picker and shipping that level's bank
+  must be a single atomic commit, not two separate ones.
 - **Stripe live-mode gate — do not cross until manually verified.** Do not
   switch Stripe from test mode to live mode, do not add production Stripe keys
   to any environment, and do not invite any real customer until every item in
