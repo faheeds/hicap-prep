@@ -1,4 +1,4 @@
-// HiCap Prep service worker — E8-1
+// HiCap Prep service worker — PWA / E8-1
 // Strategy: cache-first for the app shell and static assets;
 // network-first with cache fallback for everything else.
 // The question bank lives inside app.html (inline JS), so caching
