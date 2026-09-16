@@ -207,6 +207,18 @@
 </div>
 
 <script>
+/* Referral capture (E6-2): store ?ref=CODE from landing URL so store.js
+   can attribute this family to the referrer on first sign-up / cloud load. */
+(function(){
+  try{
+    var ref = new URLSearchParams(window.location.search).get("ref");
+    if(ref && /^[A-Z0-9]{8}$/i.test(ref)){
+      localStorage.setItem("hicap-referral", ref.toUpperCase());
+    }
+  }catch(e){}
+})();
+</script>
+<script>
 (function(){
   var KEY = "hicap-analytics";
   var banner = document.getElementById("analytics-banner");

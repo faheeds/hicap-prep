@@ -119,6 +119,23 @@ Deno.serve(async (req) => {
         stripe_customer_id:     customerId,
         stripe_subscription_id: subId,
       }).eq("id", familyId);
+
+      // Referral attribution (E6-2): if this family was referred, increment
+      // the referrer's referred_count so the founder can honor their reward.
+      const { data: purchasingFam } = await admin
+        .from("families").select("referred_by").eq("id", familyId).maybeSingle();
+      if (purchasingFam?.referred_by) {
+        const { data: referrerFam } = await admin
+          .from("families")
+          .select("id, referred_count")
+          .eq("referral_code", purchasingFam.referred_by)
+          .maybeSingle();
+        if (referrerFam) {
+          await admin.from("families")
+            .update({ referred_count: (referrerFam.referred_count || 0) + 1 })
+            .eq("id", referrerFam.id);
+        }
+      }
       break;
     }
 

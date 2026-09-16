@@ -165,7 +165,7 @@
 
     const { data: fam, error: famErr } = await supabase
       .from("families")
-      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in, pass_type, pass_expires_at, pass_student_id, stripe_customer_id, stripe_subscription_id")
+      .select("id, parent_pin_hash, consented_at, email_reminders_opted_in, pass_type, pass_expires_at, pass_student_id, stripe_customer_id, stripe_subscription_id, referral_code, referred_by, referred_count")
       .eq("owner_id", userId)
       .maybeSingle();
     if (famErr) { console.error("families load failed", famErr); return defaultApp(); }
@@ -191,6 +191,20 @@
       studentsById[row.id] = studentRowToApp(row, historyByStudent[row.id] || []);
     });
 
+    // One-time referral capture: if this family was not yet attributed to a
+    // referrer but the user arrived via a ?ref= link, write referred_by now.
+    if (!fam.referred_by) {
+      let refCode = null;
+      try { refCode = localStorage.getItem("hicap-referral"); } catch (e) { /* noop */ }
+      if (refCode && /^[A-Z0-9]{8}$/.test(refCode) && refCode !== (fam.referral_code || "")) {
+        const { error: refErr } = await supabase.from("families")
+          .update({ referred_by: refCode })
+          .eq("id", fam.id);
+        if (!refErr) fam.referred_by = refCode;
+      }
+      try { localStorage.removeItem("hicap-referral"); } catch (e) { /* noop */ }
+    }
+
     return {
       // pin_hash is server-side gated in E1-6; keep a non-numeric placeholder
       // so client PIN comparison always fails and the parent has to use the
@@ -204,6 +218,9 @@
       passStudentId: fam.pass_student_id || null,
       stripeCustomerId: fam.stripe_customer_id || null,
       stripeSubscriptionId: fam.stripe_subscription_id || null,
+      referralCode: fam.referral_code || "",
+      referredBy: fam.referred_by || null,
+      referredCount: fam.referred_count || 0,
       students: studentsById,
     };
   }
