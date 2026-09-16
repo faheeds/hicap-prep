@@ -1048,7 +1048,12 @@ function shuffle(arr){
   return a;
 }
 function effectiveLevel(level){
-  return DRILLS[level] ? level : 13;
+  if(DRILLS[level]) return level;
+  console.warn(
+    "[HiCap] No content bank for CogAT Level "+level+" — serving Level 13 content as fallback.",
+    "Add DRILLS["+level+"] to remove this warning."
+  );
+  return 13;
 }
 function sampleQuestions(level,b,t,sub,n){
   const pool = DRILLS[effectiveLevel(level)][b][t][sub];
