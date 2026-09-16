@@ -13,6 +13,10 @@ import path from "node:path";
 const root = path.resolve(fileURLToPath(import.meta.url), "../..");
 const migPath = path.join(root, "supabase", "migrations", "20260914001500_org_roster.sql");
 const MIG = readFileSync(migPath, "utf-8");
+// Hardening migration that adds explicit RESTRICTIVE deny policies for UPDATE/DELETE.
+const DENY_MIG = readFileSync(
+  path.join(root, "supabase", "migrations", "20260914001700_org_roster_deny_write.sql"), "utf-8"
+);
 const STORE = readFileSync(path.join(root, "src", "store.js"), "utf-8");
 const APP_HTML = readFileSync(path.join(root, "src", "app.html"), "utf-8");
 
@@ -161,4 +165,56 @@ test("E7-3 app.html: import errors are shown to the user (not silently dropped)"
   const ctx = APP_HTML.slice(Math.max(0, importIdx - 500), importIdx + 500);
   assert.match(ctx, /error/i,
     "import flow must surface errors visibly rather than silently ignoring bad rows");
+});
+
+// ---------------------------------------------------------------------------
+// RLS rejection tests — UPDATE and DELETE (migration 20260914001700)
+//
+// These mirror the INSERT rejection test above. Rather than relying on the
+// implicit default-deny (no permissive policy = deny), we assert the existence
+// of explicit RESTRICTIVE policies that block authenticated UPDATE and DELETE
+// even if a future permissive FOR ALL policy were accidentally added.
+// ---------------------------------------------------------------------------
+test("E7-3 RLS rejection: UPDATE is explicitly blocked via RESTRICTIVE policy (org_roster_no_update)", () => {
+  assert.match(DENY_MIG, /create policy.*org_roster_no_update/i,
+    "explicit UPDATE-denial policy must exist");
+  // Extract the UPDATE policy block to verify it is RESTRICTIVE with USING(false).
+  const updatePolicyMatch = DENY_MIG.match(/create policy[^;]*org_roster_no_update[\s\S]*?;/i);
+  assert.ok(updatePolicyMatch, "org_roster_no_update policy block must parse");
+  const pol = updatePolicyMatch[0];
+  assert.match(pol, /as restrictive/i,
+    "UPDATE denial must use AS RESTRICTIVE so it cannot be overridden by future permissive policies");
+  assert.match(pol, /for update/i, "policy must target UPDATE");
+  assert.match(pol, /to authenticated/i, "policy must target the authenticated role");
+  assert.match(pol, /using\s*\(\s*false\s*\)/i,
+    "USING(false) rejects the action for every row, i.e., all authenticated UPDATE attempts are rejected");
+});
+
+test("E7-3 RLS rejection: DELETE is explicitly blocked via RESTRICTIVE policy (org_roster_no_delete)", () => {
+  assert.match(DENY_MIG, /create policy.*org_roster_no_delete/i,
+    "explicit DELETE-denial policy must exist");
+  const deletePolicyMatch = DENY_MIG.match(/create policy[^;]*org_roster_no_delete[\s\S]*?;/i);
+  assert.ok(deletePolicyMatch, "org_roster_no_delete policy block must parse");
+  const pol = deletePolicyMatch[0];
+  assert.match(pol, /as restrictive/i,
+    "DELETE denial must use AS RESTRICTIVE so it cannot be overridden by future permissive policies");
+  assert.match(pol, /for delete/i, "policy must target DELETE");
+  assert.match(pol, /to authenticated/i, "policy must target the authenticated role");
+  assert.match(pol, /using\s*\(\s*false\s*\)/i,
+    "USING(false) rejects the action for every row, i.e., all authenticated DELETE attempts are rejected");
+});
+
+test("E7-3 RLS rejection: only INSERT is permitted for authenticated (no other write path exists)", () => {
+  // Combined check: across both migrations, the only permissive write policy
+  // for authenticated is INSERT (owner only). Any UPDATE/DELETE for authenticated
+  // is blocked by the restrictive policies above.
+  const combined = MIG + DENY_MIG;
+  const policies = combined.match(/create policy[^;]+;/gis) || [];
+  const permissiveWrites = policies.filter(p =>
+    /for\s+(update|delete)/i.test(p)
+    && /to authenticated/i.test(p)
+    && !/as restrictive/i.test(p)
+  );
+  assert.equal(permissiveWrites.length, 0,
+    "no permissive UPDATE or DELETE policy must exist for authenticated — only RESTRICTIVE blocks");
 });
