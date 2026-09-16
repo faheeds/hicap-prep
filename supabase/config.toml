@@ -44,8 +44,8 @@ enabled = true
 
 [auth]
 enabled = true
-site_url = "https://hicapprep.com"
-additional_redirect_urls = ["https://hicapprep.com", "https://hicap-prep.vercel.app", "http://127.0.0.1:5500", "https://127.0.0.1:5500"]
+site_url = "https://hicap-prep.vercel.app"
+additional_redirect_urls = ["https://hicap-prep.vercel.app", "http://127.0.0.1:5500", "https://127.0.0.1:5500"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10

@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
   let body: { returnUrl?: string };
   try { body = await req.json(); } catch { body = {}; }
-  const returnUrl = body.returnUrl || "https://hicapprep.com/app.html";
+  const returnUrl = body.returnUrl || "https://hicap-prep.vercel.app/app.html";
 
   const stripe = new Stripe(STRIPE_SECRET, { apiVersion: "2024-04-10" });
 

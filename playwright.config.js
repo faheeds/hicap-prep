@@ -1,5 +1,5 @@
 // Playwright config — only for e2e tests in tests-e2e/.
-// These tests hit the live deployed URL (https://hicapprep.com) and are NOT
+// These tests hit the live deployed URL (https://hicap-prep.vercel.app) and are NOT
 // included in the npm test suite (which runs tests/*.test.mjs via node --test).
 // Run manually: npx playwright test
 // Run single file: npx playwright test tests-e2e/sw-update.spec.js

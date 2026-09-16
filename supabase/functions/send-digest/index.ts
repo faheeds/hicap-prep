@@ -25,7 +25,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 const SUPABASE_URL        = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY         = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY      = Deno.env.get("RESEND_API_KEY");
-const FROM_EMAIL          = Deno.env.get("FROM_EMAIL") || "noreply@hicapprep.com";
+const FROM_EMAIL          = Deno.env.get("FROM_EMAIL");
 const CRON_SECRET         = Deno.env.get("CRON_SECRET");
 
 Deno.serve(async (req) => {
@@ -48,6 +48,9 @@ Deno.serve(async (req) => {
 
   if (!RESEND_API_KEY) {
     return jsonResponse({ error: "RESEND_API_KEY not configured — see README for setup steps" }, 503);
+  }
+  if (!FROM_EMAIL) {
+    return jsonResponse({ error: "FROM_EMAIL not configured — set it to a Resend-verified sender address" }, 503);
   }
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -179,10 +182,10 @@ function buildRetentionEmail(): string {
 <p style="font-size:18px;font-weight:bold;color:#f2621f;margin-bottom:4px;">HiCap Prep</p>
 <h1 style="font-size:22px;margin:0 0 16px 0;">We haven't seen you in a while</h1>
 <p>Your family's account has been inactive for more than 17 months.</p>
-<p>Per our <a href="https://hicapprep.com/privacy.html" style="color:#f2621f;">Privacy Policy §6</a>,
+<p>Per our <a href="https://hicap-prep.vercel.app/privacy.html" style="color:#f2621f;">Privacy Policy §6</a>,
   we'll delete inactive family data 60 days after this notice if you don't sign in.
   Sign in now to keep your data and resume your child's practice route.</p>
-<p><a href="https://hicapprep.com" style="color:#f2621f;font-weight:bold;">Sign in →</a></p>
+<p><a href="https://hicap-prep.vercel.app" style="color:#f2621f;font-weight:bold;">Sign in →</a></p>
 <p style="margin-top:24px;font-size:12px;color:#9d8f80;">
   To immediately delete your data, sign in and use the "Delete my family's account" button in Parent area → Settings.
   <br>HiCap Prep is not affiliated with or endorsed by Riverside Insights or CogAT.

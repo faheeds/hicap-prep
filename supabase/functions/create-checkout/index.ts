@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
   }
 
   const mode = priceType === "annual" ? "subscription" : "payment";
-  const appUrl = successUrl || "https://hicapprep.com/app.html";
+  const appUrl = successUrl || "https://hicap-prep.vercel.app/app.html";
 
   const session = await stripe.checkout.sessions.create({
     mode,

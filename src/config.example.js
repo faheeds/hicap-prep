@@ -7,7 +7,7 @@
 window.__HICAP_CONFIG = {
   supabaseUrl: "",
   supabaseAnonKey: "",
-  // Your Plausible Analytics domain (e.g. "hicapprep.com").
+  // Your Plausible Analytics domain (e.g. "hicap-prep.vercel.app").
   // Leave blank (or omit) to disable analytics. No restart needed.
   plausibleDomain: ""
 };

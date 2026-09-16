@@ -13,11 +13,11 @@
 // fires when skipWaiting() + clients.claim() hand off to the new SW.
 //
 // Run: npx playwright test tests-e2e/sw-update.spec.js
-// Requires: live https://hicapprep.com deployment (checked at runtime).
+// Requires: live https://hicap-prep.vercel.app deployment (checked at runtime).
 
 import { test, expect } from "@playwright/test";
 
-const LIVE_URL = "https://hicapprep.com/app.html";
+const LIVE_URL = "https://hicap-prep.vercel.app/app.html";
 
 // Far-future CACHE_NAME used in the simulated "new deployment".
 // The pattern must match what sw.js produces at build time: hicap-YYYYMMDDTHHMMSSz
