@@ -1,0 +1,7 @@
+{
+  "buildCommand": "node scripts/gen-config.js",
+  "outputDirectory": "src",
+  "rewrites": [
+    { "source": "/", "destination": "/landing.html" }
+  ]
+}
