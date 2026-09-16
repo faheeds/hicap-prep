@@ -99,7 +99,8 @@ test("E4-1: src/landing.html exists, matches the design system, and links to the
   assert.match(html, /class="wordmark">HiCap Prep/, "must show the HiCap Prep wordmark");
 
   // Copy blocks the row's acceptance criteria calls out.
-  assert.match(html, /Ten weeks\. One kid at a time, or the whole house\./);
+  // Headline updated from the original prototype — new landing was rebuilt per product direction.
+  assert.match(html, /The structured way to prep for the CogAT/);
   assert.match(html, /Why we built it/);
   assert.match(html, /Four things it does that a workbook can't/);
   assert.match(html, /Get started free/);

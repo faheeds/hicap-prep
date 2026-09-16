@@ -11,17 +11,18 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
 <style>
-  /* Design tokens — mirrors src/app.html (see docs/DESIGN_SYSTEM.md).
-     Kept inline rather than in a shared stylesheet so the site keeps its
-     no-build-step architecture. */
   :root{
     --bg:#fffdf9; --surface:#fff0e3; --ink:#1d1b2e; --divider:#e4d9cc;
     --flare:#f2621f;
     --flare-100:#fff1e6; --flare-200:#ffd7b8; --flare-300:#ffb075; --flare-400:#fb8640;
     --flare-500:#f2621f; --flare-600:#d9470b; --flare-700:#ad3506; --flare-800:#7d2504;
+    --lagoon:#0fb3a5;
+    --lagoon-100:#e2fbf7; --lagoon-200:#b4f2e9; --lagoon-300:#6fe2d3;
+    --lagoon-500:#0fb3a5; --lagoon-700:#067168; --lagoon-800:#04514a;
+    --violet:#6d4aff;
+    --violet-100:#efeaff; --violet-500:#6d4aff;
     --neutral-100:#fbf7f2; --neutral-200:#f2ebe2; --neutral-300:#e2d7c9; --neutral-400:#c4b6a6;
     --neutral-500:#9d8f80; --neutral-600:#7c6f62; --neutral-700:#5d5245; --neutral-800:#3b3345;
-    --neutral-900:#231f37;
     --space-1:4.6px; --space-2:9.2px; --space-3:13.8px; --space-4:18.4px;
     --space-6:27.6px; --space-8:36.8px;
     --radius-sm:2px; --radius-md:4px; --radius-lg:7px;
@@ -36,14 +37,11 @@
   h1,h2,h3{font-family:var(--font-heading); font-weight:600; margin:0;}
   a{color:var(--flare-800);}
 
-  /* Shell — matches src/app.html: capped at 520px, centered, hairline sides. */
   .shell{max-width:520px; margin:0 auto; min-height:100vh;
     display:flex; flex-direction:column;
     border-left:1px solid var(--divider); border-right:1px solid var(--divider);
     background:var(--bg);}
 
-  /* Header bar — same treatment as src/app.html but without the student
-     chip or lock icon (no session on the landing page). */
   .app-header{display:flex; align-items:center; gap:var(--space-3);
     padding:var(--space-3) var(--space-4);
     background:var(--ink); color:var(--neutral-100);
@@ -53,12 +51,10 @@
   .app-header .tag{color:var(--neutral-100); opacity:0.7; font-size:12px;
     margin-left:auto; text-align:right;}
 
-  main.view{padding:var(--space-4); display:flex; flex-direction:column; gap:var(--space-8);
-    flex:1;}
-  section.stack{display:flex; flex-direction:column; gap:var(--space-3);}
+  /* Main layout */
+  main.view{display:flex; flex-direction:column; flex:1;}
 
-  /* Type helpers — kept in step with src/app.html so buttons and headings
-     render identically across the two surfaces. */
+  /* Type scale */
   .display{font-family:var(--font-heading); font-weight:400; font-size:38px;
     letter-spacing:-0.02em; line-height:1.1; margin:0;}
   .heading{font-family:var(--font-heading); font-weight:600; font-size:25px;
@@ -67,10 +63,10 @@
     line-height:1.2; margin:0;}
   .caption-flare{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
     color:var(--flare-700);}
-  .small{font-size:13px;}
   .body-muted{color:var(--neutral-800); line-height:1.6;}
+  .small{font-size:13px;}
 
-  /* Buttons — outlined per design spec, no solid fills. */
+  /* Buttons — outlined system buttons */
   .btn{display:inline-flex; align-items:center; justify-content:center;
     gap:var(--space-2);
     min-height:44px; padding:0 var(--space-4);
@@ -83,29 +79,101 @@
   .btn-cta{min-height:48px; font-size:15px;}
   .btn:focus-visible{outline:2px solid var(--flare); outline-offset:2px;}
 
-  /* Feature-block list — 4 panels, stacked at phone size (the design
-     brief's primary target). Each block is a bordered card with a subhead
-     and a body line. */
-  .feature-list{display:flex; flex-direction:column; gap:var(--space-3);}
-  .feature-panel{border:1px solid var(--divider); border-radius:var(--radius-md);
-    padding:var(--space-3);
-    display:flex; flex-direction:column; gap:var(--space-2);}
-  .feature-panel .subhead{color:var(--ink);}
-  .feature-panel .body{font-size:14px; line-height:1.55; color:var(--neutral-800);}
+  /* Solid-filled CTA — deliberate exception to the design system's
+     outline-only rule, scoped to the two landing-page hero CTAs only.
+     Every in-app button remains outlined. */
+  .btn-solid{background:var(--flare); color:var(--neutral-100); border:none;}
+  .btn-solid:hover{background:var(--flare-600); color:var(--neutral-100);}
+  .btn-solid:focus-visible{outline:2px solid var(--flare); outline-offset:2px;}
 
-  /* Trust block — tinted panel per the design token pattern. */
+  /* ------------------------------------------------------------------ */
+  /* HERO — two columns on wide, stacked on narrow                       */
+  /* ------------------------------------------------------------------ */
+  .hero{display:grid; grid-template-columns:1fr; gap:var(--space-6);
+    padding:var(--space-8) var(--space-4) var(--space-6);}
+  @media (min-width:440px){
+    .hero{grid-template-columns:1fr 1fr; align-items:center;}
+  }
+  .hero-text{display:flex; flex-direction:column; gap:var(--space-3);}
+
+  /* Product preview panel */
+  .preview-panel{background:var(--bg); border:1px solid var(--divider);
+    border-radius:var(--radius-lg); padding:var(--space-3);
+    display:flex; flex-direction:column; gap:var(--space-3);
+    box-shadow:var(--shadow-md);}
+  .preview-header{font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--neutral-600);}
+  .preview-identity{display:flex; align-items:center; gap:var(--space-3);}
+  .preview-ring-wrap{position:relative; width:64px; height:64px; flex:none;}
+  .preview-ring-label{position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;}
+  .preview-ring-pct{font-family:var(--font-heading); font-size:16px;
+    line-height:1; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .preview-ring-lbl{font-size:9px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--neutral-600);}
+  .preview-student-name{font-family:var(--font-heading); font-weight:600;
+    font-size:17px; line-height:1.2; color:var(--ink);}
+  .preview-student-meta{font-size:11px; color:var(--neutral-700);
+    font-variant-numeric:tabular-nums;}
+  .preview-bars{display:flex; flex-direction:column; gap:var(--space-2);}
+  .preview-bar-row{display:flex; flex-direction:column; gap:4px;}
+  .preview-bar-labels{display:flex; justify-content:space-between; align-items:baseline;}
+  .preview-bar-lbl{font-size:11px; color:var(--neutral-800);}
+  .preview-bar-val{font-size:11px; color:var(--neutral-700); font-variant-numeric:tabular-nums;}
+  .preview-track{height:7px; border-radius:4px; overflow:hidden; outline:1px solid var(--flare-200);}
+  .preview-track-lagoon{outline-color:var(--lagoon-200);}
+  .preview-track-violet{outline-color:var(--violet-100);}
+  .preview-fill{height:100%; border-radius:4px;}
+
+  /* ------------------------------------------------------------------ */
+  /* WHY section                                                          */
+  /* ------------------------------------------------------------------ */
+  .why-section{padding:0 var(--space-4) var(--space-6);
+    border-top:1px solid var(--divider); padding-top:var(--space-6);}
+  .why-quote{font-family:var(--font-heading); font-weight:400; font-size:22px;
+    line-height:1.35; letter-spacing:-0.01em; color:var(--ink); margin:0;}
+
+  /* ------------------------------------------------------------------ */
+  /* FOUR THINGS                                                          */
+  /* ------------------------------------------------------------------ */
+  .four-section{padding:0 var(--space-4) var(--space-6);
+    display:flex; flex-direction:column; gap:var(--space-3);}
+  .four-cards{display:flex; flex-direction:column; gap:var(--space-3);}
+  .feature-card{border-radius:var(--radius-md); padding:var(--space-3);
+    display:flex; align-items:flex-start; gap:var(--space-3);}
+  .feature-card-flare{background:var(--flare-100); border:1px solid var(--flare-200);}
+  .feature-card-lagoon{background:var(--lagoon-100); border:1px solid var(--lagoon-200);}
+  .feature-card-violet{background:var(--violet-100); border:1px solid var(--violet-500);}
+  .feature-card-violet{border-color:rgba(109,74,255,0.2);}
+  .feature-icon{flex:none; margin-top:2px;}
+  .feature-text{display:flex; flex-direction:column; gap:var(--space-1);}
+  .feature-bold{font-family:var(--font-heading); font-weight:600; font-size:16px;
+    line-height:1.2; color:var(--ink);}
+  .feature-support{font-size:13px; color:var(--neutral-800); line-height:1.5;}
+
+  /* ------------------------------------------------------------------ */
+  /* TRUST block                                                          */
+  /* ------------------------------------------------------------------ */
+  .trust-section{padding:0 var(--space-4) var(--space-6);}
   .trust{background:var(--flare-100); border:1px solid var(--flare-300);
     border-radius:var(--radius-md);
     padding:var(--space-3);
-    font-size:14px; line-height:1.6; color:var(--neutral-800);}
+    font-size:13px; line-height:1.6; color:var(--neutral-800);}
 
-  /* Closing CTA — centered, small kicker + big button. */
-  .closing{display:flex; flex-direction:column; align-items:center;
-    gap:var(--space-3); text-align:center;
-    padding:var(--space-6) 0;}
+  /* ------------------------------------------------------------------ */
+  /* CLOSING CTA — full-bleed ink band                                    */
+  /* ------------------------------------------------------------------ */
+  .cta-band{background:var(--ink); color:var(--neutral-100);
+    padding:var(--space-8) var(--space-4);
+    display:flex; flex-direction:column; align-items:center;
+    gap:var(--space-4); text-align:center;
+    border-top:1px solid var(--flare-800);}
+  .cta-band-headline{font-family:var(--font-heading); font-weight:400;
+    font-size:28px; line-height:1.2; letter-spacing:-0.01em;
+    color:var(--neutral-100);}
+  .cta-band-meta{font-size:13px; color:var(--neutral-500); max-width:30ch;}
 
-  /* Legal footer — same shape as src/app.html's legalFooterHTML(), including
-     the E2-4 disclaimer. */
+  /* Legal footer */
   footer.legal{padding:var(--space-4);
     border-top:1px solid var(--divider);
     color:var(--neutral-700); font-size:11px; line-height:1.6;
@@ -129,55 +197,188 @@
   </header>
 
   <main class="view">
-    <!-- HERO -->
-    <section class="stack" aria-labelledby="hero-h">
-      <h1 id="hero-h" class="display">Ten weeks. One kid at a time, or the whole house.</h1>
-      <p class="body-muted">A structured, day-by-day practice program for CogAT — the cognitive abilities test most districts use for gifted and advanced-learning placement. Built around a real 10-week testing calendar, not a pile of worksheets to figure out on your own.</p>
-      <div><a class="btn btn-primary btn-cta" href="app.html#signup">Get started</a></div>
-    </section>
 
-    <!-- PROBLEM -->
-    <section class="stack" aria-labelledby="why-h">
-      <h2 id="why-h" class="heading">Why we built it</h2>
-      <p class="body-muted">Most families prepping for a gifted-program test end up with one of two things: an expensive tutor, or a stack of static worksheets that repeat the same questions every time. Neither tells you what to do today, and neither adjusts when your kid gets faster than the material.</p>
-    </section>
+    <!-- ============================================================ -->
+    <!-- HERO                                                          -->
+    <!-- ============================================================ -->
+    <section class="hero" aria-labelledby="hero-h">
+      <!-- Left: copy + CTA -->
+      <div class="hero-text">
+        <div class="caption-flare">10-week program</div>
+        <h1 id="hero-h" class="display">The structured way to prep for the CogAT.</h1>
+        <p class="body-muted" style="margin:0;">Day-by-day lessons, fresh questions every session, and parent-run mock tests — for one kid or the whole family.</p>
+        <div>
+          <a class="btn btn-solid btn-cta" href="app.html#signup">Get started free</a>
+        </div>
+      </div>
 
-    <!-- HOW IT WORKS - 4 blocks -->
-    <section class="stack" aria-labelledby="how-h">
-      <div class="caption-flare">How it actually works</div>
-      <h2 id="how-h" class="heading">Four things it does that a workbook can't</h2>
-      <div class="feature-list">
-        <div class="feature-panel">
-          <div class="subhead">A real day-by-day plan</div>
-          <div class="body">Ten weeks, seventy short lessons, mapped to when your district actually tests — not a random question generator.</div>
-        </div>
-        <div class="feature-panel">
-          <div class="subhead">Never the same set twice</div>
-          <div class="body">Hundreds of questions per topic, drawn fresh every session, so your kid is reasoning through it, not remembering it from last week.</div>
-        </div>
-        <div class="feature-panel">
-          <div class="subhead">One login, every kid</div>
-          <div class="body">Add each child to the family roster and track their own pace, streak, and progress separately.</div>
-        </div>
-        <div class="feature-panel">
-          <div class="subhead">You run the mock tests</div>
-          <div class="body">Timed practice exams are parent-started, with a visible countdown — nobody sits a full mock by accident.</div>
+      <!-- Right: product preview panel -->
+      <div aria-hidden="true">
+        <div class="preview-panel">
+          <div class="preview-header">Week 7 of 10</div>
+
+          <div class="preview-identity">
+            <!-- Completion ring: 42 of 70 lessons = 60%
+                 Circumference 2π×42 ≈ 263.9; filled = 0.6×263.9 ≈ 158.3 -->
+            <div class="preview-ring-wrap">
+              <svg width="64" height="64" viewBox="0 0 96 96">
+                <circle cx="48" cy="48" r="42"
+                  fill="var(--flare-100)" stroke="var(--flare-200)" stroke-width="7"/>
+                <circle cx="48" cy="48" r="42" fill="none"
+                  stroke="var(--flare-500)" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="158.3 263.9" transform="rotate(-90 48 48)"/>
+              </svg>
+              <div class="preview-ring-label">
+                <div class="preview-ring-pct">60%</div>
+                <div class="preview-ring-lbl">Route</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="preview-student-name">Jordan</div>
+              <div class="preview-student-meta">42 of 70 lessons · Grade 7</div>
+            </div>
+          </div>
+
+          <!-- Mastery bars: same CSS shape as app.html .bar component -->
+          <div class="preview-bars">
+            <div class="preview-bar-row">
+              <div class="preview-bar-labels">
+                <span class="preview-bar-lbl">Verbal reasoning</span>
+                <span class="preview-bar-val">74%</span>
+              </div>
+              <div class="preview-track" style="background:var(--flare-100);">
+                <div class="preview-fill" style="width:74%; background:var(--flare-500);"></div>
+              </div>
+            </div>
+            <div class="preview-bar-row">
+              <div class="preview-bar-labels">
+                <span class="preview-bar-lbl">Quantitative reasoning</span>
+                <span class="preview-bar-val">61%</span>
+              </div>
+              <div class="preview-track preview-track-lagoon" style="background:var(--lagoon-100);">
+                <div class="preview-fill" style="width:61%; background:var(--lagoon-500);"></div>
+              </div>
+            </div>
+            <div class="preview-bar-row">
+              <div class="preview-bar-labels">
+                <span class="preview-bar-lbl">Nonverbal reasoning</span>
+                <span class="preview-bar-val">49%</span>
+              </div>
+              <div class="preview-track preview-track-violet" style="background:var(--violet-100);">
+                <div class="preview-fill" style="width:49%; background:var(--violet-500);"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- TRUST -->
-    <section aria-label="Independent practice material notice">
+    <!-- ============================================================ -->
+    <!-- WHY WE BUILT IT                                               -->
+    <!-- ============================================================ -->
+    <section class="why-section" aria-labelledby="why-h">
+      <div class="caption-flare" style="margin-bottom:var(--space-3);">Why we built it</div>
+      <p class="why-quote" id="why-h">
+        Most prep is an expensive tutor or a worksheet that repeats itself forever. We wanted neither.
+      </p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- FOUR THINGS                                                   -->
+    <!-- ============================================================ -->
+    <section class="four-section" aria-labelledby="four-h">
+      <div class="caption-flare">How it works</div>
+      <h2 id="four-h" class="heading">Four things it does that a workbook can't</h2>
+      <div class="four-cards">
+
+        <!-- 1. A real day-by-day plan — flare / route icon -->
+        <div class="feature-card feature-card-flare">
+          <div class="feature-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+              stroke="var(--flare-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="6" cy="19" r="3"/>
+              <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/>
+              <circle cx="18" cy="5" r="3"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-bold">A real day-by-day plan</div>
+            <div class="feature-support">Ten weeks, seventy short lessons — mapped to your district's testing calendar.</div>
+          </div>
+        </div>
+
+        <!-- 2. Never the same set twice — lagoon / shuffle icon -->
+        <div class="feature-card feature-card-lagoon">
+          <div class="feature-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+              stroke="var(--lagoon-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/>
+              <path d="m18 2 4 4-4 4"/>
+              <path d="M2 6h1.9c1 0 1.8.4 2.5 1.1"/>
+              <path d="m18 14 4 4-4 4"/>
+              <path d="M21.5 18H17c-1.3 0-2.5-.6-3.3-1.7l-.5-.7"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-bold">Never the same set twice</div>
+            <div class="feature-support">Hundreds of questions per topic, drawn fresh every session.</div>
+          </div>
+        </div>
+
+        <!-- 3. One login, every kid — violet / users icon -->
+        <div class="feature-card feature-card-violet">
+          <div class="feature-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+              stroke="var(--violet-500)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-bold">One login, every kid</div>
+            <div class="feature-support">Add each child to the roster and track their own pace and progress separately.</div>
+          </div>
+        </div>
+
+        <!-- 4. You run the mock tests — flare / lock icon -->
+        <div class="feature-card feature-card-flare">
+          <div class="feature-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+              stroke="var(--flare-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="10" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-bold">You run the mock tests</div>
+            <div class="feature-support">Parent-started, with a visible countdown — nobody sits a full mock by accident.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TRUST                                                         -->
+    <!-- ============================================================ -->
+    <section class="trust-section" aria-label="Independent practice material notice">
       <div class="trust">
-        This is independent practice material. HiCap Prep is not affiliated with or endorsed by Riverside Insights or CogAT. We built this because our own family was going through the same admissions process — <a href="privacy.html">see our approach to your child's data →</a>.
+        Independent practice material — not affiliated with or endorsed by Riverside Insights or CogAT. <a href="privacy.html">How we handle your family's data →</a>
       </div>
     </section>
 
-    <!-- CLOSING CTA -->
-    <section class="closing">
-      <p class="small" style="color:var(--neutral-700); max-width:34ch;">Currently built for Grade 7 (CogAT Level 13), with more grade levels on the way.</p>
-      <a class="btn btn-primary btn-cta" href="app.html#signup">Get started free</a>
+    <!-- ============================================================ -->
+    <!-- CLOSING CTA — full-bleed ink band                             -->
+    <!-- ============================================================ -->
+    <section class="cta-band" aria-labelledby="cta-h">
+      <h2 id="cta-h" class="cta-band-headline">Ten weeks. Start when you find the date.</h2>
+      <a class="btn btn-solid btn-cta" href="app.html#signup">Get started free</a>
+      <p class="cta-band-meta">Currently built for Grade 7 (CogAT Level 13), with more grade levels on the way.</p>
     </section>
+
   </main>
 
   <footer class="legal">
@@ -191,31 +392,9 @@
   </footer>
 </div>
 
-<!-- Analytics consent banner (E2-6 / E6-3).
-     Plausible is cookieless; consent is good practice regardless. -->
-<div id="analytics-banner" role="region" aria-label="Analytics notice" style="
-    position:fixed; bottom:0; left:0; right:0; z-index:9000;
-    background:#1d1b2e; color:#fff;
-    display:flex; align-items:center; gap:18px;
-    padding:12px 28px; flex-wrap:wrap; font-size:.85rem;">
-  <span style="flex:1; min-width:200px;">
-    We use <a href="https://plausible.io" target="_blank" rel="noopener" style="color:#fb8640">Plausible</a>
-    — a privacy-friendly, cookieless analytics tool — to understand how the site is used.
-    No personal data is collected.
-  </span>
-  <div style="display:flex; gap:12px; flex-shrink:0;">
-    <button id="analytics-accept" style="
-        background:#f2621f; color:#fff; border:none; border-radius:4px;
-        padding:6px 16px; cursor:pointer; font-size:.85rem;">That's fine</button>
-    <button id="analytics-decline" style="
-        background:transparent; color:#ccc; border:1px solid #555; border-radius:4px;
-        padding:6px 16px; cursor:pointer; font-size:.85rem;">No thanks</button>
-  </div>
-</div>
-
+<!-- Referral capture (E6-2): store ?ref=CODE so store.js can attribute
+     this family to the referrer on first sign-up. -->
 <script>
-/* Referral capture (E6-2): store ?ref=CODE from landing URL so store.js
-   can attribute this family to the referrer on first sign-up / cloud load. */
 (function(){
   try{
     var ref = new URLSearchParams(window.location.search).get("ref");
@@ -225,13 +404,34 @@
   }catch(e){}
 })();
 </script>
+
+<!-- Analytics consent banner (E2-6 / E6-3). Plausible is cookieless. -->
+<div id="analytics-banner" role="region" aria-label="Analytics notice" style="
+    position:fixed; bottom:0; left:0; right:0; z-index:9000;
+    background:var(--ink); color:var(--neutral-100);
+    display:flex; align-items:center; gap:18px;
+    padding:12px 28px; flex-wrap:wrap; font-size:.85rem;">
+  <span style="flex:1; min-width:200px;">
+    We use <a href="https://plausible.io" target="_blank" rel="noopener" style="color:var(--flare-400);">Plausible</a>
+    — a privacy-friendly, cookieless analytics tool — to understand how the site is used.
+    No personal data is collected.
+  </span>
+  <div style="display:flex; gap:12px; flex-shrink:0;">
+    <button id="analytics-accept" style="
+        background:var(--flare); color:var(--neutral-100); border:none; border-radius:4px;
+        padding:6px 16px; cursor:pointer; font-size:.85rem;">That's fine</button>
+    <button id="analytics-decline" style="
+        background:transparent; color:var(--neutral-400); border:1px solid var(--neutral-700); border-radius:4px;
+        padding:6px 16px; cursor:pointer; font-size:.85rem;">No thanks</button>
+  </div>
+</div>
+
 <script>
 (function(){
   var KEY = "hicap-analytics";
   var banner = document.getElementById("analytics-banner");
   function hide(){ if(banner) banner.remove(); }
 
-  // If already decided, hide immediately (don't wait for DOMContentLoaded).
   try{
     var prior = localStorage.getItem(KEY);
     if(prior) hide();
@@ -258,7 +458,6 @@
     hide();
   });
 
-  // If previously accepted, load Plausible immediately and hide banner.
   try{
     if(localStorage.getItem(KEY) === "accepted"){ loadPlausible(); }
   }catch(e){}
