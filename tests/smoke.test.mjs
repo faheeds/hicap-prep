@@ -158,6 +158,41 @@ test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regressio
   });
 });
 
+test("PF Tier 1: correct answer has exactly 2^n dots AND no two options share the same coordinate set", () => {
+  // Guards against:
+  //   (a) the anti-diagonal dis3 bug — pfUnfold(d, ["v","h","ad"]) always
+  //       produces the same D4 orbit as pfUnfold(d, ["v","h","d"]), so
+  //       "correct" and dis3 were identical for all 4 triple-fold items.
+  //   (b) two configs landing in the same D4 orbit — their correct answers
+  //       were identical coordinate sets (e.g., (35,100) and (20,85) share
+  //       an orbit under v+h+d).
+  const pool = window.DRILLS[13].nonverbal[1].PF;
+  const dotsIn = (svg) => (svg.match(/<circle\b/g) || []).length;
+  const parseDots = (svg) => {
+    const out = []; const re = /<circle\s+cx="([^"]+)"\s+cy="([^"]+)"/g; let m;
+    while ((m = re.exec(svg))) out.push(`${m[1]},${m[2]}`);
+    return out;
+  };
+  const canonKey = (svg) => parseDots(svg).sort().join("|");
+  const foldCounts = pool.map(q => (q.q.match(/stroke-dasharray/g) || []).length);
+
+  pool.forEach((q, i) => {
+    const n = foldCounts[i];
+    const expected = Math.pow(2, n);
+    // Check 1: correct answer dot count.
+    assert.equal(dotsIn(q.o[q.a]), expected,
+      `q${i+1} (${n}-fold): correct answer must have ${expected} dots`);
+    // Check 2: all four options are canonically distinct coordinate sets.
+    const keys = q.o.map(canonKey);
+    for (let a = 0; a < 4; a++) {
+      for (let b = a + 1; b < 4; b++) {
+        assert.notEqual(keys[a], keys[b],
+          `q${i+1}: options ${a} and ${b} share identical dot coordinate set — distractor is not visually distinct`);
+      }
+    }
+  });
+});
+
 test("question bank: every item has structurally valid answer data", () => {
   for (const level of Object.keys(window.DRILLS)) {
     for (const battery of Object.keys(window.DRILLS[level])) {

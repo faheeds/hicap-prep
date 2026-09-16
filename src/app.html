@@ -662,12 +662,17 @@ function pfBuildTier1(){
     // Triple-fold — v + h + main-diagonal (8 dots). Same constraints as
     // 2-fold PLUS the more crowded 8-dot pattern is more sensitive to
     // near-collisions (checked against MIN_DIST = 15 in the pf-geometry
-    // test). Punches (100,40) / (95,45) / (35,100) / (20,85) all produce
-    // 8-dot patterns whose minimum pairwise distance is >= 21.2 units.
-    {folds:["v","h","d"], d:{x:100,y:40}},
-    {folds:["v","h","d"], d:{x:95,y:45}},
-    {folds:["v","h","d"], d:{x:35,y:100}},
-    {folds:["v","h","d"], d:{x:20,y:85}},
+    // test). Each config also carries a dis3Dot in a DIFFERENT D4 orbit so
+    // the "wrong diagonal" distractor is genuinely distinct from the correct
+    // answer — pfUnfold(c.d, ["v","h","ad"]) is always the same orbit as
+    // pfUnfold(c.d, ["v","h","d"]) (anti-diagonal is redundant once v+h+d
+    // generate the full D4 group), so that approach was abandoned in favour of
+    // a dot from a verified distinct orbit. All 8-dot patterns verified to
+    // have minimum pairwise dot distance >= 16.97 units (> MIN_DIST = 15).
+    {folds:["v","h","d"], d:{x:100,y:40}, dis3Dot:{x:95,y:45}},
+    {folds:["v","h","d"], d:{x:95,y:45},  dis3Dot:{x:100,y:40}},
+    {folds:["v","h","d"], d:{x:102,y:35}, dis3Dot:{x:100,y:40}},
+    {folds:["v","h","d"], d:{x:100,y:32}, dis3Dot:{x:95,y:45}},
   ];
   return configs.map((c, idx) => {
     const correct = pfUnfold(c.d, c.folds);
@@ -690,7 +695,7 @@ function pfBuildTier1(){
     } else {  // n === 3
       dis1 = pfUnfold(c.d, ["v"]);             // 2 dots — unfolded only one
       dis2 = pfUnfold(c.d, ["v","h"]);         // 4 dots — missed the diagonal fold
-      dis3 = pfUnfold(c.d, ["v","h","ad"]);    // 8 dots WRONG pattern — used anti-diagonal instead (SAME count as correct)
+      dis3 = pfUnfold(c.dis3Dot, c.folds);    // 8 dots — different D4 orbit (dis3Dot is a verified distinct punch location)
     }
 
     const raw = [dis1, correct, dis2, dis3];
