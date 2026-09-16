@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CogAT Testing Dates — How to Find Your District's Schedule — HiCap Prep</title>
+<meta name="description" content="CogAT testing dates vary by district and change every year. Here's how to find your district's current schedule, what the typical testing windows look like, and how to build a 10-week prep plan around the date you find.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
+<style>
+  :root{
+    --bg:#fffdf9; --surface:#fff0e3; --ink:#1d1b2e; --divider:#e4d9cc;
+    --flare:#f2621f;
+    --flare-100:#fff1e6; --flare-200:#ffd7b8; --flare-300:#ffb075; --flare-400:#fb8640;
+    --flare-500:#f2621f; --flare-600:#d9470b; --flare-700:#ad3506; --flare-800:#7d2504;
+    --neutral-100:#fbf7f2; --neutral-200:#f2ebe2; --neutral-300:#e2d7c9; --neutral-400:#c4b6a6;
+    --neutral-500:#9d8f80; --neutral-600:#7c6f62; --neutral-700:#5d5245; --neutral-800:#3b3345;
+    --neutral-900:#231f37;
+    --space-1:4.6px; --space-2:9.2px; --space-3:13.8px; --space-4:18.4px;
+    --space-6:27.6px; --space-8:36.8px;
+    --radius-sm:2px; --radius-md:4px; --radius-lg:7px;
+    --shadow-md:0 3px 10px rgba(45,43,43,0.16);
+    --font-heading:"Cormorant Garamond", Georgia, "Source Serif Pro", serif;
+    --font-body:"Lora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    font-size:15px; line-height:1.55;}
+  h1,h2,h3{font-family:var(--font-heading); font-weight:600; margin:0;}
+  a{color:var(--flare-800);}
+
+  .shell{max-width:520px; margin:0 auto; min-height:100vh;
+    display:flex; flex-direction:column;
+    border-left:1px solid var(--divider); border-right:1px solid var(--divider);
+    background:var(--bg);}
+
+  .app-header{display:flex; align-items:center; gap:var(--space-3);
+    padding:var(--space-3) var(--space-4);
+    background:var(--ink); color:var(--neutral-100);
+    border-bottom:1px solid var(--flare-800);}
+  .app-header .wordmark{font-family:var(--font-heading); font-weight:600; font-size:16px;
+    letter-spacing:0.01em; color:var(--flare-300); white-space:nowrap; text-decoration:none;}
+  .app-header .tag{color:var(--neutral-100); opacity:0.7; font-size:12px;
+    margin-left:auto; text-align:right;}
+
+  main.view{padding:var(--space-4); display:flex; flex-direction:column; gap:var(--space-8);
+    flex:1;}
+  section.stack{display:flex; flex-direction:column; gap:var(--space-3);}
+
+  .display{font-family:var(--font-heading); font-weight:400; font-size:38px;
+    letter-spacing:-0.02em; line-height:1.1; margin:0;}
+  .heading{font-family:var(--font-heading); font-weight:600; font-size:25px;
+    line-height:1.15; margin:0;}
+  .subhead{font-family:var(--font-heading); font-weight:600; font-size:17px;
+    line-height:1.2; margin:0;}
+  .caption-flare{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--flare-700);}
+  .small{font-size:13px;}
+  .body-muted{color:var(--neutral-800); line-height:1.6;}
+
+  .btn{display:inline-flex; align-items:center; justify-content:center;
+    gap:var(--space-2);
+    min-height:44px; padding:0 var(--space-4);
+    border-radius:var(--radius-md);
+    font-family:var(--font-heading); font-weight:600; font-size:14px;
+    background:transparent; cursor:pointer; text-decoration:none;
+    transition:background 0.12s ease;}
+  .btn-primary{border:1px solid var(--flare); color:var(--flare-800);}
+  .btn-primary:hover{background:rgba(242,98,31,0.12);}
+  .btn-cta{min-height:48px; font-size:15px;}
+  .btn:focus-visible{outline:2px solid var(--flare); outline-offset:2px;}
+
+  .feature-list{display:flex; flex-direction:column; gap:var(--space-3);}
+  .feature-panel{border:1px solid var(--divider); border-radius:var(--radius-md);
+    padding:var(--space-3);
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  .feature-panel .subhead{color:var(--ink);}
+  .feature-panel .body{font-size:14px; line-height:1.55; color:var(--neutral-800);}
+
+  .trust{background:var(--flare-100); border:1px solid var(--flare-300);
+    border-radius:var(--radius-md);
+    padding:var(--space-3);
+    font-size:14px; line-height:1.6; color:var(--neutral-800);}
+
+  .closing{display:flex; flex-direction:column; align-items:center;
+    gap:var(--space-3); text-align:center;
+    padding:var(--space-6) 0;}
+
+  .breadcrumb{font-size:12px; color:var(--neutral-600); display:flex; gap:var(--space-2);
+    flex-wrap:wrap; align-items:center; padding-bottom:var(--space-2);}
+  .breadcrumb a{color:var(--neutral-600); text-decoration:none;}
+  .breadcrumb a:hover{color:var(--flare-800); text-decoration:underline;}
+  .breadcrumb .sep{color:var(--neutral-400);}
+
+  footer.legal{padding:var(--space-4);
+    border-top:1px solid var(--divider);
+    color:var(--neutral-700); font-size:11px; line-height:1.6;
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  footer.legal a{color:var(--flare-800); text-decoration:none;}
+  footer.legal a:hover{text-decoration:underline;}
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="app-header">
+    <a class="wordmark" href="landing.html">HiCap Prep</a>
+    <span class="tag">CogAT practice for the whole family</span>
+  </header>
+
+  <main class="view">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="landing.html">Home</a>
+      <span class="sep" aria-hidden="true">›</span>
+      <span aria-current="page">CogAT testing dates</span>
+    </nav>
+
+    <!-- HERO -->
+    <section class="stack" aria-labelledby="hero-h">
+      <div class="caption-flare">Finding your test date</div>
+      <h1 id="hero-h" class="display">CogAT testing dates vary by district — here's how to find yours</h1>
+      <p class="body-muted">We don't publish a list of specific testing dates here. Every district sets its own schedule, and those schedules change every year — a date that was accurate last fall may be weeks off this year. Publishing a list we can't keep current would do more harm than good. Instead, this page explains where to find authoritative dates and how to use that information to build a prep plan.</p>
+    </section>
+
+    <!-- WHY DATES VARY -->
+    <section class="stack" aria-labelledby="vary-h">
+      <div class="caption-flare">Why there's no single calendar</div>
+      <h2 id="vary-h" class="heading">Why CogAT dates differ from district to district</h2>
+      <p class="body-muted">CogAT testing for gifted-program identification is administered by individual school districts, not by the test maker. Each district decides when to test, which grades to test, and how to fit testing into the school calendar. A district in one city might test in October; a neighboring district might test in January. Both might shift by several weeks from one year to the next depending on staffing, enrollment windows, and state reporting deadlines.</p>
+    </section>
+
+    <!-- HOW TO FIND YOUR DATE -->
+    <section class="stack" aria-labelledby="find-h">
+      <div class="caption-flare">The authoritative sources</div>
+      <h2 id="find-h" class="heading">How to find your district's current testing dates</h2>
+      <div class="feature-list">
+        <div class="feature-panel">
+          <div class="subhead">Your district's gifted or highly capable program page</div>
+          <div class="body">Most districts publish their referral and testing timeline on the district website under a heading like "Highly Capable," "Gifted Education," or "Talented and Gifted." Search your district's name plus "highly capable" or "gifted testing dates." This is the most reliable source because the district owns it and updates it each year.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">Your school's office or counselor</div>
+          <div class="body">The school counselor or front office usually knows the referral deadline and testing date before they appear on the district website. If you're within a few months of when you expect testing to happen and the website hasn't been updated, call or email the school directly.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">Last year's date as a rough anchor</div>
+          <div class="body">If you can find when your district tested last year — often mentioned in local parent groups or last year's district newsletter — that gives you a rough anchor. Most districts test within a few weeks of the same time each year. Don't use this to set a hard start date for prep, but it can tell you which season to watch for.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">The district's enrollment or registration calendar</div>
+          <div class="body">Gifted-program placement decisions are often tied to enrollment deadlines for the following school year. Working backward from those deadlines can help you estimate when testing needs to happen.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW TO USE THE DATE -->
+    <section class="stack" aria-labelledby="use-h">
+      <div class="caption-flare">Planning around the date</div>
+      <h2 id="use-h" class="heading">How to build a prep plan once you have the date</h2>
+      <p class="body-muted">HiCap Prep's 10-week program is designed to be run exactly once — starting 10 weeks before the test and finishing the week it happens. When you find your district's testing date, count back 10 weeks on a calendar and mark that as your start date. The program runs Monday through Sunday with a short lesson each weekday and a parent-run mock test in Week 4 and Week 8.</p>
+      <p class="body-muted">If you find the date and you have fewer than 10 weeks, start at the week that corresponds to where you are. The program adapts — it's better to cover weeks 4–10 than to skip the program entirely.</p>
+      <p class="body-muted">If you find the date and you have more than 10 weeks, use the extra time for free practice. The practice mode draws fresh questions every session and doesn't follow the weekly plan — it's useful for keeping the habit active before you officially start the 10-week route.</p>
+    </section>
+
+    <!-- TRUST -->
+    <section aria-label="Independent practice material notice">
+      <div class="trust">
+        HiCap Prep does not publish district-specific testing dates, and we are not affiliated with or endorsed by any school district. All date information must be verified directly with your district — school calendars change every year.
+      </div>
+    </section>
+
+    <!-- RELATED PAGES -->
+    <section class="stack" aria-labelledby="related-h">
+      <div class="caption-flare">Also on this site</div>
+      <h2 id="related-h" class="heading">Related guides</h2>
+      <div class="feature-list">
+        <div class="feature-panel">
+          <div class="subhead"><a href="cogat-guide.html">What is the CogAT?</a></div>
+          <div class="body">A plain-language explanation of the test structure, the three batteries, how levels work, and what the scores mean.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead"><a href="gifted-testing.html">Gifted program admissions — how it works</a></div>
+          <div class="body">What HICAP and highly capable programs are, how the referral and CogAT testing process works, and what actually helps with preparation.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLOSING CTA -->
+    <section class="closing">
+      <p class="small" style="color:var(--neutral-700); max-width:36ch;">Once you have the date, HiCap Prep's 10-week program gives you the structure.</p>
+      <a class="btn btn-primary btn-cta" href="app.html#signup">Start practicing free</a>
+    </section>
+  </main>
+
+  <footer class="legal">
+    <div>HiCap Prep is not affiliated with, endorsed by, or sponsored by Riverside Insights or the makers of CogAT&reg;. CogAT is a registered trademark of Riverside Insights; references here are strictly nominative.</div>
+    <div>
+      <a href="landing.html">Home</a> ·
+      <a href="cogat-guide.html">What is the CogAT?</a> ·
+      <a href="gifted-testing.html">Gifted testing</a> ·
+      <a href="testing-dates.html">Testing dates</a> ·
+      <a href="privacy.html">Privacy Policy</a> ·
+      <a href="terms.html">Terms of Service</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Is the CogAT? — HiCap Prep</title>
+<meta name="description" content="A plain-language guide to the Cognitive Abilities Test (CogAT): what it measures, how it's structured, who takes it, and what the scores mean for gifted-program placement.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
+<style>
+  :root{
+    --bg:#fffdf9; --surface:#fff0e3; --ink:#1d1b2e; --divider:#e4d9cc;
+    --flare:#f2621f;
+    --flare-100:#fff1e6; --flare-200:#ffd7b8; --flare-300:#ffb075; --flare-400:#fb8640;
+    --flare-500:#f2621f; --flare-600:#d9470b; --flare-700:#ad3506; --flare-800:#7d2504;
+    --neutral-100:#fbf7f2; --neutral-200:#f2ebe2; --neutral-300:#e2d7c9; --neutral-400:#c4b6a6;
+    --neutral-500:#9d8f80; --neutral-600:#7c6f62; --neutral-700:#5d5245; --neutral-800:#3b3345;
+    --neutral-900:#231f37;
+    --space-1:4.6px; --space-2:9.2px; --space-3:13.8px; --space-4:18.4px;
+    --space-6:27.6px; --space-8:36.8px;
+    --radius-sm:2px; --radius-md:4px; --radius-lg:7px;
+    --shadow-md:0 3px 10px rgba(45,43,43,0.16);
+    --font-heading:"Cormorant Garamond", Georgia, "Source Serif Pro", serif;
+    --font-body:"Lora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    font-size:15px; line-height:1.55;}
+  h1,h2,h3{font-family:var(--font-heading); font-weight:600; margin:0;}
+  a{color:var(--flare-800);}
+
+  .shell{max-width:520px; margin:0 auto; min-height:100vh;
+    display:flex; flex-direction:column;
+    border-left:1px solid var(--divider); border-right:1px solid var(--divider);
+    background:var(--bg);}
+
+  .app-header{display:flex; align-items:center; gap:var(--space-3);
+    padding:var(--space-3) var(--space-4);
+    background:var(--ink); color:var(--neutral-100);
+    border-bottom:1px solid var(--flare-800);}
+  .app-header .wordmark{font-family:var(--font-heading); font-weight:600; font-size:16px;
+    letter-spacing:0.01em; color:var(--flare-300); white-space:nowrap; text-decoration:none;}
+  .app-header .tag{color:var(--neutral-100); opacity:0.7; font-size:12px;
+    margin-left:auto; text-align:right;}
+
+  main.view{padding:var(--space-4); display:flex; flex-direction:column; gap:var(--space-8);
+    flex:1;}
+  section.stack{display:flex; flex-direction:column; gap:var(--space-3);}
+
+  .display{font-family:var(--font-heading); font-weight:400; font-size:38px;
+    letter-spacing:-0.02em; line-height:1.1; margin:0;}
+  .heading{font-family:var(--font-heading); font-weight:600; font-size:25px;
+    line-height:1.15; margin:0;}
+  .subhead{font-family:var(--font-heading); font-weight:600; font-size:17px;
+    line-height:1.2; margin:0;}
+  .caption-flare{font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--flare-700);}
+  .small{font-size:13px;}
+  .body-muted{color:var(--neutral-800); line-height:1.6;}
+
+  .btn{display:inline-flex; align-items:center; justify-content:center;
+    gap:var(--space-2);
+    min-height:44px; padding:0 var(--space-4);
+    border-radius:var(--radius-md);
+    font-family:var(--font-heading); font-weight:600; font-size:14px;
+    background:transparent; cursor:pointer; text-decoration:none;
+    transition:background 0.12s ease;}
+  .btn-primary{border:1px solid var(--flare); color:var(--flare-800);}
+  .btn-primary:hover{background:rgba(242,98,31,0.12);}
+  .btn-cta{min-height:48px; font-size:15px;}
+  .btn:focus-visible{outline:2px solid var(--flare); outline-offset:2px;}
+
+  .feature-list{display:flex; flex-direction:column; gap:var(--space-3);}
+  .feature-panel{border:1px solid var(--divider); border-radius:var(--radius-md);
+    padding:var(--space-3);
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  .feature-panel .subhead{color:var(--ink);}
+  .feature-panel .body{font-size:14px; line-height:1.55; color:var(--neutral-800);}
+
+  .trust{background:var(--flare-100); border:1px solid var(--flare-300);
+    border-radius:var(--radius-md);
+    padding:var(--space-3);
+    font-size:14px; line-height:1.6; color:var(--neutral-800);}
+
+  .closing{display:flex; flex-direction:column; align-items:center;
+    gap:var(--space-3); text-align:center;
+    padding:var(--space-6) 0;}
+
+  .breadcrumb{font-size:12px; color:var(--neutral-600); display:flex; gap:var(--space-2);
+    flex-wrap:wrap; align-items:center; padding-bottom:var(--space-2);}
+  .breadcrumb a{color:var(--neutral-600); text-decoration:none;}
+  .breadcrumb a:hover{color:var(--flare-800); text-decoration:underline;}
+  .breadcrumb .sep{color:var(--neutral-400);}
+
+  footer.legal{padding:var(--space-4);
+    border-top:1px solid var(--divider);
+    color:var(--neutral-700); font-size:11px; line-height:1.6;
+    display:flex; flex-direction:column; gap:var(--space-2);}
+  footer.legal a{color:var(--flare-800); text-decoration:none;}
+  footer.legal a:hover{text-decoration:underline;}
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="app-header">
+    <a class="wordmark" href="landing.html">HiCap Prep</a>
+    <span class="tag">CogAT practice for the whole family</span>
+  </header>
+
+  <main class="view">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="landing.html">Home</a>
+      <span class="sep" aria-hidden="true">›</span>
+      <span aria-current="page">What is the CogAT?</span>
+    </nav>
+
+    <!-- HERO -->
+    <section class="stack" aria-labelledby="hero-h">
+      <div class="caption-flare">CogAT explained</div>
+      <h1 id="hero-h" class="display">What is the CogAT?</h1>
+      <p class="body-muted">The Cognitive Abilities Test — CogAT for short — measures reasoning and problem-solving abilities in three areas. It's not a test of what a child has memorized; it's designed to assess how they think. Many school districts use it as one criterion for gifted or highly capable program placement.</p>
+    </section>
+
+    <!-- THREE BATTERIES -->
+    <section class="stack" aria-labelledby="batteries-h">
+      <div class="caption-flare">Test structure</div>
+      <h2 id="batteries-h" class="heading">Three batteries, nine subtests</h2>
+      <p class="body-muted">The CogAT is divided into three batteries. Each battery contains three subtests, for nine subtests in total. Students may take all three batteries (the full battery) or a single battery, depending on how the district chooses to administer the test.</p>
+      <div class="feature-list">
+        <div class="feature-panel">
+          <div class="subhead">Verbal battery</div>
+          <div class="body">Measures reasoning with words and language — analogies, classifications, and sentence completion. Students are asked to find relationships between words and complete patterns in language, not to recall facts.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">Quantitative battery</div>
+          <div class="body">Measures reasoning with numbers and mathematical relationships — number sequences, number puzzles, and equation building. It tests logical thinking with quantities, not arithmetic computation.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead">Nonverbal battery</div>
+          <div class="body">Measures reasoning with shapes and figures — classifications, analogies, and paper folding. No reading or math is required; students work entirely with abstract visual patterns. This battery is sometimes described as the most language-independent of the three.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEVELS -->
+    <section class="stack" aria-labelledby="levels-h">
+      <div class="caption-flare">Test levels</div>
+      <h2 id="levels-h" class="heading">CogAT levels and grades</h2>
+      <p class="body-muted">The CogAT is offered at different levels that correspond roughly to grade level. Each level uses question formats and vocabulary appropriate for the intended age group. A student takes the level matched to their current grade — not their ability level. Level assignment is handled by the district or school, not by the family.</p>
+      <p class="body-muted">HiCap Prep currently covers CogAT Level 13 (Grade 7) with more levels on the way.</p>
+    </section>
+
+    <!-- SCORING -->
+    <section class="stack" aria-labelledby="scoring-h">
+      <div class="caption-flare">Scores</div>
+      <h2 id="scoring-h" class="heading">How CogAT scores work</h2>
+      <p class="body-muted">CogAT results are reported as Standard Age Scores (SAS), Percentile Rank (PR), and a Stanine (S) — a 9-point scale where 9 is the highest. Scores are compared to other students of the same age, not the same grade. Most gifted programs look at Stanine 7 or above as a starting threshold, though the exact cutoff varies by district and program.</p>
+      <p class="body-muted">The scores are a snapshot of how a student performed on a particular day, not a fixed measure of potential. Familiarity with the question formats — understanding what each subtest is actually asking — makes a real difference in performance.</p>
+    </section>
+
+    <!-- TRUST -->
+    <section aria-label="Independent practice material notice">
+      <div class="trust">
+        HiCap Prep is independent practice material, not affiliated with or endorsed by Riverside Insights or the makers of CogAT. CogAT® is a registered trademark of Riverside Insights. For official test information, contact your district or visit Riverside Insights directly.
+      </div>
+    </section>
+
+    <!-- RELATED PAGES -->
+    <section class="stack" aria-labelledby="related-h">
+      <div class="caption-flare">Also on this site</div>
+      <h2 id="related-h" class="heading">Related guides</h2>
+      <div class="feature-list">
+        <div class="feature-panel">
+          <div class="subhead"><a href="gifted-testing.html">Gifted program admissions — how it works</a></div>
+          <div class="body">What HICAP and highly capable programs are, who qualifies, and what the typical referral and testing process looks like.</div>
+        </div>
+        <div class="feature-panel">
+          <div class="subhead"><a href="testing-dates.html">How to find your district's CogAT testing dates</a></div>
+          <div class="body">Testing windows vary every year by district. Here's how to find the schedule that applies to your child and how to build a prep plan around it.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLOSING CTA -->
+    <section class="closing">
+      <p class="small" style="color:var(--neutral-700); max-width:36ch;">Ready to start practicing? HiCap Prep's 10-week program covers all three batteries with fresh questions every session.</p>
+      <a class="btn btn-primary btn-cta" href="app.html#signup">Start practicing free</a>
+    </section>
+  </main>
+
+  <footer class="legal">
+    <div>HiCap Prep is not affiliated with, endorsed by, or sponsored by Riverside Insights or the makers of CogAT&reg;. CogAT is a registered trademark of Riverside Insights; references here are strictly nominative.</div>
+    <div>
+      <a href="landing.html">Home</a> ·
+      <a href="cogat-guide.html">What is the CogAT?</a> ·
+      <a href="gifted-testing.html">Gifted testing</a> ·
+      <a href="testing-dates.html">Testing dates</a> ·
+      <a href="privacy.html">Privacy Policy</a> ·
+      <a href="terms.html">Terms of Service</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
