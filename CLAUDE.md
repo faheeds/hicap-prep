@@ -96,6 +96,16 @@ need reshaping once the `level` key exists.
   per-battery fallback exist to prevent crashes during development and testing; they are not
   graceful-degradation strategies for real users. Expanding the picker and shipping that level's
   complete bank must be a single atomic commit, not two (or more) separate ones.
+- **Resend verified-domain gate — do not send to real customers until resolved.**
+  `FROM_EMAIL` is currently Resend's sandbox sender `onboarding@resend.dev`,
+  which can only deliver to the Resend account owner's own email address. Do not
+  enable the weekly digest cron job, do not flip `retention_automation_enabled =
+  true`, and do not let any real customer opt in to email reminders until: (1) a
+  real sender domain is verified in the Resend dashboard, (2) `FROM_EMAIL` is
+  updated in Supabase secrets to that verified address, and (3) a test email is
+  confirmed delivered to an address outside the Resend account owner's inbox.
+  Sending from the sandbox address to a customer's email will silently fail or
+  bounce — Resend enforces the sandbox restriction at the API level.
 - **Stripe live-mode gate — do not cross until manually verified.** Do not
   switch Stripe from test mode to live mode, do not add production Stripe keys
   to any environment, and do not invite any real customer until every item in
