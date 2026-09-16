@@ -6,5 +6,8 @@
 // automated test suite and for offline demos.
 window.__HICAP_CONFIG = {
   supabaseUrl: "",
-  supabaseAnonKey: ""
+  supabaseAnonKey: "",
+  // Your Plausible Analytics domain (e.g. "hicapprep.com").
+  // Leave blank (or omit) to disable analytics. No restart needed.
+  plausibleDomain: ""
 };

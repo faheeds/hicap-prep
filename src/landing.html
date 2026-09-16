@@ -183,5 +183,67 @@
     <div><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a></div>
   </footer>
 </div>
+
+<!-- Analytics consent banner (E2-6 / E6-3).
+     Plausible is cookieless; consent is good practice regardless. -->
+<div id="analytics-banner" role="region" aria-label="Analytics notice" style="
+    position:fixed; bottom:0; left:0; right:0; z-index:9000;
+    background:#1d1b2e; color:#fff;
+    display:flex; align-items:center; gap:18px;
+    padding:12px 28px; flex-wrap:wrap; font-size:.85rem;">
+  <span style="flex:1; min-width:200px;">
+    We use <a href="https://plausible.io" target="_blank" rel="noopener" style="color:#fb8640">Plausible</a>
+    — a privacy-friendly, cookieless analytics tool — to understand how the site is used.
+    No personal data is collected.
+  </span>
+  <div style="display:flex; gap:12px; flex-shrink:0;">
+    <button id="analytics-accept" style="
+        background:#f2621f; color:#fff; border:none; border-radius:4px;
+        padding:6px 16px; cursor:pointer; font-size:.85rem;">That's fine</button>
+    <button id="analytics-decline" style="
+        background:transparent; color:#ccc; border:1px solid #555; border-radius:4px;
+        padding:6px 16px; cursor:pointer; font-size:.85rem;">No thanks</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "hicap-analytics";
+  var banner = document.getElementById("analytics-banner");
+  function hide(){ if(banner) banner.remove(); }
+
+  // If already decided, hide immediately (don't wait for DOMContentLoaded).
+  try{
+    var prior = localStorage.getItem(KEY);
+    if(prior) hide();
+  }catch(e){}
+
+  function loadPlausible(){
+    var domain = (window.__HICAP_CONFIG && window.__HICAP_CONFIG.plausibleDomain) || "";
+    if(!domain || document.getElementById("plausible-script")) return;
+    var s = document.createElement("script");
+    s.id = "plausible-script";
+    s.defer = true;
+    s.dataset.domain = domain;
+    s.src = "https://plausible.io/js/script.js";
+    document.head.appendChild(s);
+  }
+
+  document.getElementById("analytics-accept").addEventListener("click", function(){
+    try{ localStorage.setItem(KEY, "accepted"); }catch(e){}
+    loadPlausible();
+    hide();
+  });
+  document.getElementById("analytics-decline").addEventListener("click", function(){
+    try{ localStorage.setItem(KEY, "declined"); }catch(e){}
+    hide();
+  });
+
+  // If previously accepted, load Plausible immediately and hide banner.
+  try{
+    if(localStorage.getItem(KEY) === "accepted"){ loadPlausible(); }
+  }catch(e){}
+})();
+</script>
 </body>
 </html>

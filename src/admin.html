@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiCap Prep — Founder Dashboard</title>
+<style>
+  :root{
+    --bg:#fffdf9; --surface:#fff0e3; --ink:#1d1b2e; --divider:#e4d9cc;
+    --flare:#f2621f; --flare-100:#fff1e6; --flare-600:#d9470b;
+    --neutral-200:#f2ebe2; --neutral-500:#9d8f80; --neutral-600:#7c6f62; --neutral-700:#5d5245;
+    --space-2:9.2px; --space-3:13.8px; --space-4:18.4px; --space-6:27.6px; --space-8:36.8px;
+    --radius-md:4px; --radius-lg:7px; --shadow-md:0 3px 10px rgba(45,43,43,0.16);
+    --font-heading:"Cormorant Garamond", Georgia, serif;
+    --font-body:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:var(--font-body); background:var(--bg); color:var(--ink); min-height:100vh; padding:var(--space-8);}
+  h1{font-family:var(--font-heading); font-size:2rem; font-weight:600; margin-bottom:var(--space-6);}
+  h2{font-family:var(--font-heading); font-size:1.25rem; font-weight:600; margin-bottom:var(--space-4);}
+  .token-form{display:flex; gap:var(--space-3); align-items:flex-end; max-width:480px; margin-bottom:var(--space-8);}
+  .token-form label{font-size:.85rem; color:var(--neutral-600); display:block; margin-bottom:4px;}
+  .token-form input{
+    flex:1; padding:var(--space-2) var(--space-3); border:1px solid var(--divider);
+    border-radius:var(--radius-md); font-size:.95rem; background:#fff;
+  }
+  .token-form button{
+    padding:var(--space-2) var(--space-4); background:var(--flare); color:#fff;
+    border:none; border-radius:var(--radius-md); cursor:pointer; font-size:.9rem; white-space:nowrap;
+  }
+  .token-form button:hover{background:var(--flare-600);}
+  #status{color:var(--neutral-600); font-size:.9rem; margin-bottom:var(--space-6);}
+  #status.err{color:#c0392b;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:var(--space-4); margin-bottom:var(--space-8);}
+  .card{
+    background:#fff; border:1px solid var(--divider); border-radius:var(--radius-lg);
+    padding:var(--space-4) var(--space-6); box-shadow:var(--shadow-md);
+  }
+  .card .label{font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--neutral-600); margin-bottom:4px;}
+  .card .value{font-size:2rem; font-weight:700; color:var(--ink); font-family:var(--font-heading);}
+  .card .sub{font-size:.8rem; color:var(--neutral-500); margin-top:2px;}
+  .section{margin-bottom:var(--space-8);}
+  .refresh{font-size:.8rem; color:var(--neutral-600); margin-top:var(--space-4);}
+  footer{border-top:1px solid var(--divider); padding-top:var(--space-4); font-size:.8rem; color:var(--neutral-500); margin-top:var(--space-8);}
+</style>
+</head>
+<body>
+<h1>HiCap Prep — Founder Dashboard</h1>
+
+<div class="token-form">
+  <div style="flex:1">
+    <label for="tokenInput">Admin secret</label>
+    <input id="tokenInput" type="password" placeholder="Paste ADMIN_SECRET here" autocomplete="off">
+  </div>
+  <button onclick="load()">Load metrics</button>
+</div>
+
+<div id="status"></div>
+<div id="dashboard" style="display:none">
+  <div class="section">
+    <h2>Funnel</h2>
+    <div class="grid" id="funnelGrid"></div>
+  </div>
+  <div class="section">
+    <h2>Usage</h2>
+    <div class="grid" id="usageGrid"></div>
+  </div>
+  <div class="refresh" id="refreshNote"></div>
+</div>
+
+<footer>
+  Admin-only. Not affiliated with Riverside Insights or CogAT&reg;.
+  Source: <code>supabase/functions/admin-metrics</code>.
+</footer>
+
+<script>
+let _refreshTimer = null;
+
+function card(label, value, sub) {
+  return `<div class="card">
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+    ${sub ? `<div class="sub">${sub}</div>` : ""}
+  </div>`;
+}
+
+function renderMetrics(m) {
+  const f = m.families;
+  const a = m.attempts;
+  document.getElementById("funnelGrid").innerHTML = [
+    card("Total families", f.total, "all signups ever"),
+    card("Paid families", f.paid, `${f.conversionPct}% conversion`),
+    card("Free families", f.free, "not yet converted"),
+    card("New (7 days)", f.signupsLast7Days),
+    card("New (30 days)", f.signupsLast30Days),
+    card("Total students", m.students.total, "across all families"),
+  ].join("");
+  document.getElementById("usageGrid").innerHTML = [
+    card("Total sessions", a.total),
+    card("Practice", a.practice),
+    card("Program days", a.program),
+    card("Mock tests", a.mock),
+    card("Reviews", a.review),
+  ].join("");
+  document.getElementById("refreshNote").textContent =
+    "Last loaded: " + new Date(m.generatedAt).toLocaleString();
+  document.getElementById("dashboard").style.display = "";
+}
+
+async function load() {
+  const token = document.getElementById("tokenInput").value.trim();
+  if (!token) { setStatus("Enter the admin secret first.", true); return; }
+  setStatus("Loading…");
+  try {
+    // Derive the function URL from the current origin when served via Supabase,
+    // or fall back to a relative path for local testing.
+    const base = window.__SUPABASE_URL || location.origin;
+    const url  = base.includes("supabase.co")
+      ? base + "/functions/v1/admin-metrics"
+      : "/functions/v1/admin-metrics";
+    const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+    if (res.status === 401) { setStatus("Wrong admin secret.", true); return; }
+    if (!res.ok) { setStatus("Error " + res.status + ": " + await res.text(), true); return; }
+    renderMetrics(await res.json());
+    setStatus("");
+    // Auto-refresh every 60 seconds.
+    if (_refreshTimer) clearInterval(_refreshTimer);
+    _refreshTimer = setInterval(load, 60_000);
+  } catch (e) {
+    setStatus("Network error: " + e.message, true);
+  }
+}
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = isErr ? "err" : "";
+}
+
+// Allow ?token=... for quick bookmarks (token stays in URL — only use this on
+// a private network or with a temporary, scoped secret).
+const urlToken = new URLSearchParams(location.search).get("token");
+if (urlToken) { document.getElementById("tokenInput").value = urlToken; load(); }
+</script>
+</body>
+</html>

@@ -2978,6 +2978,100 @@ function printProgressReport(studentId){
 }
 
 /* =========================================================
+   ANALYTICS & CONSENT  (Epic 6, E6-3 / E2-6)
+   ========================================================= */
+// Analytics consent is stored per-device in localStorage, separate from the
+// COPPA parental-consent flow (APP.consentedAt) — that one is about child data;
+// this is about page-view analytics.
+//
+// Key: 'hicap-analytics'   Values: 'accepted' | 'declined' | null (not yet asked)
+//
+// Analytics provider: Plausible (cookieless, no PII — GDPR/COPPA-safe).
+// Configured via window.__HICAP_CONFIG.plausibleDomain (set in config.local.js).
+// If the domain is not configured the helpers are no-ops.
+
+const ANALYTICS_KEY = "hicap-analytics";
+
+function analyticsConsent(){
+  try{ return localStorage.getItem(ANALYTICS_KEY); }catch(e){ return null; }
+}
+
+function _loadPlausible(){
+  const domain = (typeof window!=="undefined" && window.__HICAP_CONFIG && window.__HICAP_CONFIG.plausibleDomain) || "";
+  if(!domain || document.getElementById("plausible-script")) return;
+  const s = document.createElement("script");
+  s.id   = "plausible-script";
+  s.defer = true;
+  s.dataset.domain = domain;
+  s.src = "https://plausible.io/js/script.js";
+  document.head.appendChild(s);
+}
+
+function acceptAnalytics(){
+  try{ localStorage.setItem(ANALYTICS_KEY, "accepted"); }catch(e){}
+  _loadPlausible();
+  _hideAnalyticsBanner();
+}
+
+function declineAnalytics(){
+  try{ localStorage.setItem(ANALYTICS_KEY, "declined"); }catch(e){}
+  _hideAnalyticsBanner();
+}
+
+function _hideAnalyticsBanner(){
+  const el = document.getElementById("analytics-banner");
+  if(el) el.remove();
+}
+
+// Fire a named Plausible custom event. Silently does nothing when:
+//   • analytics was declined, or not yet accepted
+//   • Plausible domain is not configured
+//   • the plausible() function hasn't loaded yet
+function trackEvent(name, props){
+  if(analyticsConsent() !== "accepted") return;
+  try{
+    if(typeof window.plausible === "function") window.plausible(name, {props: props || {}});
+  }catch(e){}
+}
+
+function shouldShowAnalyticsBanner(){
+  return analyticsConsent() === null;
+}
+
+function analyticsBannerHTML(){
+  if(!shouldShowAnalyticsBanner()) return "";
+  return `<div id="analytics-banner" role="region" aria-label="Analytics notice" style="
+      position:fixed; bottom:0; left:0; right:0; z-index:9000;
+      background:var(--neutral-900); color:#fff;
+      display:flex; align-items:center; gap:var(--space-4);
+      padding:var(--space-3) var(--space-6); flex-wrap:wrap; font-size:.85rem;">
+    <span style="flex:1; min-width:200px;">
+      We use <a href="https://plausible.io" target="_blank" rel="noopener" style="color:var(--flare-300)">Plausible</a>
+      — a privacy-friendly, cookieless analytics tool — to understand how the app is used.
+      No personal data is collected.
+    </span>
+    <div style="display:flex; gap:var(--space-3); flex-shrink:0;">
+      <button onclick="acceptAnalytics()" style="
+          background:var(--flare); color:#fff; border:none; border-radius:var(--radius-md);
+          padding:6px 16px; cursor:pointer; font-size:.85rem;">That's fine</button>
+      <button onclick="declineAnalytics()" style="
+          background:transparent; color:#ccc; border:1px solid #555; border-radius:var(--radius-md);
+          padding:6px 16px; cursor:pointer; font-size:.85rem;">No thanks</button>
+    </div>
+  </div>`;
+}
+
+function mountAnalyticsBanner(){
+  if(!shouldShowAnalyticsBanner()) return;
+  // Inject banner outside the #app div so render() doesn't clobber it.
+  if(document.getElementById("analytics-banner")) return;
+  const div = document.createElement("div");
+  div.innerHTML = analyticsBannerHTML();
+  const banner = div.firstElementChild;
+  if(banner) document.body.appendChild(banner);
+}
+
+/* =========================================================
    INIT
    ========================================================= */
 (async function init(){
@@ -3006,11 +3100,17 @@ function printProgressReport(studentId){
   }
 
   render();
+  // Load analytics if previously accepted; show banner if decision not yet made.
+  if(analyticsConsent() === "accepted") _loadPlausible();
+  mountAnalyticsBanner();
 })();
 
 if(typeof window!=="undefined"){
   window.DRILLS=DRILLS; window.BSUB=BSUB; window.MOCK_DEFS=MOCK_DEFS; window.GRADE_TO_LEVEL=GRADE_TO_LEVEL; window.gradeToLevel=gradeToLevel;
   window.sampleQuestions=sampleQuestions; window.collectQuestions=collectQuestions; window.effectiveLevel=effectiveLevel; window.weekPlan=weekPlan;
+  window.analyticsConsent=analyticsConsent; window.acceptAnalytics=acceptAnalytics; window.declineAnalytics=declineAnalytics;
+  window.shouldShowAnalyticsBanner=shouldShowAnalyticsBanner; window.analyticsBannerHTML=analyticsBannerHTML;
+  window.trackEvent=trackEvent;
 } // debug mirror
 </script>
 </body>
