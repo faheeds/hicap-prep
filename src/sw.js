@@ -4,7 +4,11 @@
 // The question bank lives inside app.html (inline JS), so caching
 // app.html is sufficient for offline practice.
 
-const CACHE_NAME = "hicap-v1";
+// __CACHE_VERSION__ is replaced by scripts/gen-config.js at Vercel build time
+// with the UTC build timestamp (e.g. "hicap-20260916T045235Z").
+// In local dev / test runs the placeholder string is the cache name, which
+// is fine — the activate handler still purges anything that doesn't match.
+const CACHE_NAME = "__CACHE_VERSION__";
 
 // App shell: everything needed to run offline practice.
 // config.local.js is intentionally excluded — it contains the Supabase
@@ -46,6 +50,10 @@ self.addEventListener("fetch", (event) => {
 
   // Skip Supabase API calls — always network; never cache auth/data.
   if (url.hostname.includes("supabase.co")) return;
+
+  // config.local.js contains the injected Supabase keys — must always be
+  // fetched fresh so a key rotation or redeployment takes effect immediately.
+  if (url.pathname.endsWith("config.local.js")) return;
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {

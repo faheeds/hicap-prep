@@ -88,8 +88,16 @@ test("landing.html: registers service worker", () => {
 // ---------------------------------------------------------------------------
 // Service worker (sw.js) structural checks
 // ---------------------------------------------------------------------------
-test("sw: defines CACHE_NAME", () => {
+test("sw: defines CACHE_NAME with build-time version placeholder or injected value", () => {
   assert.match(SW, /CACHE_NAME/);
+  // In source the placeholder is __CACHE_VERSION__; after gen-config.js runs
+  // it becomes a timestamped string like "hicap-20260916T045235Z".
+  // Either form is valid in this environment.
+  assert.match(SW, /__CACHE_VERSION__|hicap-\d{8}T\d{6}/);
+});
+
+test("sw: excludes config.local.js from caching (key must always be fetched fresh)", () => {
+  assert.match(SW, /config\.local\.js/);
 });
 
 test("sw: has install event listener that precaches app shell", () => {
