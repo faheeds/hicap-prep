@@ -54,7 +54,7 @@ test("question bank: every subtest/tier pool has 20 questions", () => {
   for (const battery of ["verbal", "quant", "nonverbal"]) {
     for (const tier of [1, 2, 3]) {
       for (const sub of window.BSUB[battery]) {
-        const n = window.DRILLS[battery][tier][sub].length;
+        const n = window.DRILLS[13][battery][tier][sub].length;
         assert.equal(n, 20, `${battery}/${tier}/${sub} has ${n}, expected 20`);
       }
     }
@@ -66,7 +66,7 @@ test("nonverbal PF Tier 1 is a shape bank — real SVG figures on every question
   // real diagrammed Paper Folding items whose stems and options carry
   // inline SVG. Other nonverbal pools (PF Tiers 2/3, FM, FC across all
   // tiers) intentionally stay text-based until the pilot is reviewed.
-  const pool = window.DRILLS.nonverbal[1].PF;
+  const pool = window.DRILLS[13].nonverbal[1].PF;
   assert.equal(pool.length, 20, "PF Tier 1 should have 20 questions");
   for (const q of pool) {
     assert.match(q.q, /<svg\b/, "PF T1 stem must be inline SVG");
@@ -79,7 +79,7 @@ test("nonverbal PF Tier 1 is a shape bank — real SVG figures on every question
   }
   // Everything else nonverbal is still text (pilot deliberately scoped).
   for (const t of [2, 3]) {
-    const stillText = window.DRILLS.nonverbal[t].PF[0].q;
+    const stillText = window.DRILLS[13].nonverbal[t].PF[0].q;
     assert.doesNotMatch(stillText, /^<svg/, `PF Tier ${t} should be untouched by the pilot`);
   }
 });
@@ -94,7 +94,7 @@ test("PF Tier 1: geometric sanity — every dot inside the canvas with margin, n
   //      of the square border (10-110 outline).
   //   2. All pairwise center-to-center distances in the SAME svg are
   //      >= MIN_DIST, so dots don't run into each other visually.
-  const pool = window.DRILLS.nonverbal[1].PF;
+  const pool = window.DRILLS[13].nonverbal[1].PF;
   const MARGIN = 15;
   const MIN_DIST = 15; // 15 units = 5px more than the 10-unit "just touching" threshold
   const parseDots = (svg) => {
@@ -131,7 +131,7 @@ test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regressio
   // pre-pilot text bank had ~10 single-fold, ~6 double-fold, ~3 triple-fold
   // (see the pool this replaced). The first pilot cut only shipped
   // single-fold, which trivialized Tier 1. This assertion locks the range.
-  const pool = window.DRILLS.nonverbal[1].PF;
+  const pool = window.DRILLS[13].nonverbal[1].PF;
   const foldCounts = pool.map(q => (q.q.match(/stroke-dasharray/g) || []).length);
   const singles = foldCounts.filter(n => n === 1).length;
   const doubles = foldCounts.filter(n => n === 2).length;
@@ -159,16 +159,18 @@ test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regressio
 });
 
 test("question bank: every item has structurally valid answer data", () => {
-  for (const battery of Object.keys(window.DRILLS)) {
-    for (const tier of Object.keys(window.DRILLS[battery])) {
-      for (const sub of Object.keys(window.DRILLS[battery][tier])) {
-        for (const q of window.DRILLS[battery][tier][sub]) {
-          assert.ok(q.q && q.e, "question missing text or explanation");
-          if (q.o) {
-            assert.equal(q.o.length, 4, "multiple-choice must have 4 options");
-            assert.ok(q.a >= 0 && q.a <= 3, "answer index out of range");
-          } else {
-            assert.ok(typeof q.a === "string" && q.a.trim().length > 0);
+  for (const level of Object.keys(window.DRILLS)) {
+    for (const battery of Object.keys(window.DRILLS[level])) {
+      for (const tier of Object.keys(window.DRILLS[level][battery])) {
+        for (const sub of Object.keys(window.DRILLS[level][battery][tier])) {
+          for (const q of window.DRILLS[level][battery][tier][sub]) {
+            assert.ok(q.q && q.e, "question missing text or explanation");
+            if (q.o) {
+              assert.equal(q.o.length, 4, "multiple-choice must have 4 options");
+              assert.ok(q.a >= 0 && q.a <= 3, "answer index out of range");
+            } else {
+              assert.ok(typeof q.a === "string" && q.a.trim().length > 0);
+            }
           }
         }
       }
@@ -177,8 +179,8 @@ test("question bank: every item has structurally valid answer data", () => {
 });
 
 test("random sampling actually varies between calls", () => {
-  const a = window.sampleQuestions("verbal", 1, "SC", 10).map((q) => q.q).join("|");
-  const b = window.sampleQuestions("verbal", 1, "SC", 10).map((q) => q.q).join("|");
+  const a = window.sampleQuestions(13, "verbal", 1, "SC", 10).map((q) => q.q).join("|");
+  const b = window.sampleQuestions(13, "verbal", 1, "SC", 10).map((q) => q.q).join("|");
   // Not a hard guarantee (could coincidentally match), but overwhelmingly
   // unlikely at pool size 20 / sample size 10 — a real regression here
   // (e.g. sampling always returning the pool in original order) would fail
