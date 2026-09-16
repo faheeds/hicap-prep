@@ -55,9 +55,8 @@ test("E7-2 migration: function is granted execute to authenticated only", () => 
 // ---------------------------------------------------------------------------
 // Privacy contract — no individual student data
 // ---------------------------------------------------------------------------
-test("E7-2 migration: get_org_stats does not return student names", () => {
+test("E7-2 migration: get_org_stats does not return student names or individual quiz data", () => {
   // The function body must not SELECT from students.name or include it in jsonb.
-  // Find the function body between $$ delimiters.
   const bodyMatch = MIG.match(/\$\$([\s\S]+?)\$\$/);
   assert.ok(bodyMatch, "function body must be delimited by $$");
   const body = bodyMatch[1];
@@ -65,6 +64,45 @@ test("E7-2 migration: get_org_stats does not return student names", () => {
     "student names must never appear in org stats output");
   assert.doesNotMatch(body, /wrong_questions/i,
     "individual quiz answers must never appear in org stats output");
+});
+
+test("E7-2 migration: get_org_stats per-family jsonb contains only the expected aggregate keys", () => {
+  // Positive shape assertion: the per-family jsonb_build_object must contain exactly
+  // the approved aggregate keys. This catches a bug where a name or individual field
+  // is aliased under a different key and slips past the negative tests above.
+  const bodyMatch = MIG.match(/\$\$([\s\S]+?)\$\$/);
+  assert.ok(bodyMatch, "function body must be delimited by $$");
+  const body = bodyMatch[1];
+
+  // Find the per-family jsonb_build_object (the one inside jsonb_agg, not the top-level one).
+  // It must contain exactly: family_id, student_count, attempt_count, total_correct,
+  // total_answered, last_active, accuracy_pct — and nothing else.
+  const EXPECTED_KEYS = ["family_id", "student_count", "attempt_count",
+                         "total_correct", "total_answered", "last_active", "accuracy_pct"];
+
+  // Locate the per-family jsonb_build_object by finding the block that lives inside
+  // jsonb_agg(). We extract from the jsonb_agg( call to the matching close paren.
+  const aggIdx = body.indexOf("jsonb_agg(");
+  assert.ok(aggIdx > -1, "jsonb_agg must exist in function body");
+  // Advance past "jsonb_agg(" to where jsonb_build_object starts.
+  const innerStart = body.indexOf("jsonb_build_object", aggIdx);
+  assert.ok(innerStart > -1, "jsonb_build_object must appear inside jsonb_agg");
+  // Grab a generous slice that covers all the per-family key-value pairs.
+  const perFamilyBlock = body.slice(innerStart, innerStart + 600);
+
+  // Every expected key must be present.
+  for (const key of EXPECTED_KEYS) {
+    assert.match(perFamilyBlock, new RegExp(`'${key}'`, "i"),
+      `per-family jsonb must include aggregate key '${key}'`);
+  }
+
+  // The block must NOT contain any column name that identifies an individual.
+  assert.doesNotMatch(perFamilyBlock, /['\s]name['\s]/i,
+    "per-family jsonb must not expose any 'name' field");
+  assert.doesNotMatch(perFamilyBlock, /wrong_questions/i,
+    "per-family jsonb must not expose wrong_questions");
+  assert.doesNotMatch(perFamilyBlock, /by_sub/i,
+    "per-family jsonb must not expose individual by_sub breakdown");
 });
 
 test("E7-2 migration: families array coalesces to empty array, not null", () => {
