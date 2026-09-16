@@ -198,7 +198,7 @@ BSD (and most CogAT districts) accept parent-initiated testing applications for 
 
 | ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes |
 |---|---|---|---|---|---|
-| E8-1 | P2 | ⬜ | PWA installability | Web app manifest + service worker so it can be "installed" to a phone home screen; cache the question bank for offline practice. | |
+| E8-1 | P2 | ✅ | PWA installability | Web app manifest + service worker so it can be "installed" to a phone home screen; cache the question bank for offline practice. | **Done:** `src/manifest.webmanifest` (name, short_name, display:standalone, start_url:/app.html, theme_color:#1d1b2e, 192+512 icons). `src/sw.js` — install event precaches app shell (app.html, auth.js, store.js, supabase-client.js, icons, manifest); activate event cleans old caches; fetch handler is cache-first for same-origin GETs, skips Supabase API calls entirely, returns a minimal offline page for uncached navigation. `scripts/gen-icons.js` generates the PNG icons at build time (no external deps). `<link rel="manifest">` and `<meta name="theme-color">` added to app.html and landing.html; SW registration added to both. Vercel buildCommand updated to run gen-icons + gen-config. 23 tests in `tests/pwa.test.mjs`. **Next: E8-2/E8-3 on hold until installability confirmed on a real phone.** |
 | E8-2 | P3 | ⬜ | Push notifications | Streak-risk and mock-test-reminder pushes, opt-in only. | Depends on E8-1 |
 | E8-3 | P3 | ⬜ | Native app store listing | Wrap the PWA (Capacitor or similar) for iOS/Android app store discoverability. | Only worth it once organic web growth plateaus |
 

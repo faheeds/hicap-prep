@@ -13,3 +13,6 @@ src/config.local.js
 # Supabase CLI transient state — the CLI writes these when running locally.
 supabase/.branches/
 supabase/.temp/
+
+.vercel
+.env*

@@ -1,0 +1,23 @@
+{
+  "name": "HiCap Prep",
+  "short_name": "HiCap Prep",
+  "description": "A 10-week CogAT practice program for gifted-program admissions testing.",
+  "start_url": "/app.html",
+  "display": "standalone",
+  "background_color": "#fffdf9",
+  "theme_color": "#1d1b2e",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

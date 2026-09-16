@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HiCap Prep — a 10-week CogAT practice program for the whole family</title>
 <meta name="description" content="Structured, day-by-day CogAT practice for gifted-program admissions testing. Ten weeks, seventy short lessons, one login for every kid on the roster.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d1b2e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
@@ -261,6 +263,13 @@
     if(localStorage.getItem(KEY) === "accepted"){ loadPlausible(); }
   }catch(e){}
 })();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function() {
+    navigator.serviceWorker.register("/sw.js").catch(function() {});
+  });
+}
 </script>
 </body>
 </html>

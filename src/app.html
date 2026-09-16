@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HiCap Prep — CogAT Learning Path</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d1b2e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora&display=swap">
@@ -3251,6 +3253,13 @@ if(typeof window!=="undefined"){
   window.copyReferralLink=copyReferralLink; window.referralSectionHTML=referralSectionHTML;
   window.shareBadge=shareBadge;
 } // debug mirror
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function() {
+    navigator.serviceWorker.register("/sw.js").catch(function() {});
+  });
+}
 </script>
 </body>
 </html>
