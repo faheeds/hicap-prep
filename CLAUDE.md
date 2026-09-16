@@ -86,12 +86,16 @@ need reshaping once the `level` key exists.
   twice this way.
 - **GRADE_OPTIONS and DRILLS banks must ship together, never the picker first.**
   `GRADE_OPTIONS` in `src/app.html` must only contain a grade if `DRILLS[gradeToLevel(grade)]`
-  already exists and is fully populated (all 9 subtests × 3 tiers × 20 questions). Adding a grade
-  to the picker without its bank causes real students to receive level-13 content silently —
-  `effectiveLevel()`'s fallback only emits a `console.warn` that nobody in production is watching.
-  The fallback exists to prevent crashes during development and testing; it is not a
-  graceful-degradation strategy for real users. Expanding the picker and shipping that level's bank
-  must be a single atomic commit, not two separate ones.
+  exists and **every battery (verbal, quant, nonverbal) has content for every tier (1, 2, 3)** —
+  all 9 subtests × 3 tiers × 20 questions. A level with only one battery authored (like Level 11
+  right now: verbal Tier 1 only) does **not** count as populated and must never be added to
+  `GRADE_OPTIONS` on the strength of one battery alone. Adding a grade to the picker before its
+  bank is complete causes real students to silently receive level-13 content for the missing
+  batteries — the per-battery fallback in `sampleQuestions()` only emits a `console.warn` that
+  nobody in production is watching. Both the level-key fallback (`effectiveLevel()`) and the
+  per-battery fallback exist to prevent crashes during development and testing; they are not
+  graceful-degradation strategies for real users. Expanding the picker and shipping that level's
+  complete bank must be a single atomic commit, not two (or more) separate ones.
 - **Stripe live-mode gate — do not cross until manually verified.** Do not
   switch Stripe from test mode to live mode, do not add production Stripe keys
   to any environment, and do not invite any real customer until every item in

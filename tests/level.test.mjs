@@ -276,6 +276,40 @@ test("sampleQuestions with a missing level fires a warn and falls back gracefull
   }
 });
 
+test("per-battery fallback: Level 11 verbal serves real content (no warn); quant/nonverbal fall back to 13 (with warn)", () => {
+  const warns = [];
+  const orig = window.console.warn;
+  window.console.warn = (...args) => warns.push(args.join(" "));
+  try {
+    // Verbal Tier 1 exists — must route to real Level-11 content with no warning.
+    const verbal = window.sampleQuestions(11, "verbal", 1, "SC", 5);
+    assert.equal(verbal.length, 5, "should return 5 Level-11 SC questions");
+    assert.equal(warns.length, 0, "no warning when the battery IS authored for Level 11");
+
+    // Quant Tier 1 is not authored for Level 11 — must warn and fall back.
+    const quant = window.sampleQuestions(11, "quant", 1, "NS", 5);
+    assert.equal(quant.length, 5, "should still return 5 questions via fallback");
+    assert.equal(warns.length, 1, "exactly one warning for the missing quant bank");
+    assert.ok(warns[0].includes("11"), "warning must mention Level 11");
+    assert.ok(warns[0].includes("quant"), "warning must mention the missing battery");
+    assert.ok(warns[0].includes("13"), "warning must mention Level 13 as the fallback");
+    assert.ok(
+      warns[0].toLowerCase().includes("fallback") || warns[0].toLowerCase().includes("serving level 13"),
+      "warning text must make the situation clear"
+    );
+    // The actionable hint should tell the author what to add.
+    assert.ok(warns[0].includes("DRILLS[11]"), "warning must include the DRILLS path to add");
+
+    // Nonverbal Tier 1 is also absent — a second warning.
+    const nonverbal = window.sampleQuestions(11, "nonverbal", 1, "FC", 5);
+    assert.equal(nonverbal.length, 5, "should still return 5 questions via fallback");
+    assert.equal(warns.length, 2, "second warning for the missing nonverbal bank");
+    assert.ok(warns[1].includes("nonverbal"), "second warning must mention the missing battery");
+  } finally {
+    window.console.warn = orig;
+  }
+});
+
 test("effectiveLevel(9999) falls back to 13 with a warning", () => {
   const warns = [];
   const orig = window.console.warn;

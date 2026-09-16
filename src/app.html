@@ -1138,7 +1138,8 @@ function sampleQuestions(level,b,t,sub,n){
   let tierBank = DRILLS[eff][b] && DRILLS[eff][b][t];
   if(!tierBank){
     console.warn(
-      "[HiCap] No content bank for Level "+eff+" battery "+b+" tier "+t+" — falling back to Level 13."
+      "[HiCap] No content bank for CogAT Level "+eff+" battery "+b+" tier "+t+" — serving Level 13 content as fallback.",
+      "Add DRILLS["+eff+"][\""+b+"\"]["+t+"] to remove this warning."
     );
     tierBank = DRILLS[13][b][t];
   }
