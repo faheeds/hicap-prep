@@ -118,3 +118,20 @@ test("students/attempts/badges policies scope to caller's own family_id, not any
   assert.ok(matches.length >= 6,
     `expected family-scoped subselect to appear on many policies, saw ${matches.length}`);
 });
+
+test("referral columns are protected from authenticated-role writes by the block_entitlement_self_grant trigger", () => {
+  const sql = readAllMigrations();
+  // The trigger must guard all three referral columns. A client could otherwise
+  // fake referral attribution (referred_by), claim another family's link
+  // (referral_code), or inflate metrics (referred_count).
+  assert.match(sql, /referral_code is distinct from old\.referral_code/i,
+    "trigger must block referral_code changes");
+  assert.match(sql, /old\.referred_by is not null and new\.referred_by is distinct from old\.referred_by/i,
+    "trigger must enforce write-once semantics on referred_by");
+  assert.match(sql, /new\.referred_count is distinct from old\.referred_count/i,
+    "trigger must block referred_count changes from authenticated role");
+  // The guard must still be conditional on current_user = 'authenticated' so
+  // the service-role webhook can still increment referred_count.
+  assert.match(sql, /current_user = 'authenticated'/i,
+    "trigger guard must be scoped to authenticated role only");
+});

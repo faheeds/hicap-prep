@@ -105,3 +105,34 @@ test("stripe-webhook: increments referrer's referred_count on checkout.session.c
   // Must increment referred_count (read + write pattern).
   assert.match(WEBHOOK, /referred_count.*\+\s*1/);
 });
+
+const PRIVACY = readFileSync(new URL("../src/privacy.html", import.meta.url), "utf-8");
+
+test("privacy.html: discloses voluntary badge sharing and what data leaves the app", () => {
+  // COPPA context: privacy policy must disclose the share feature, what info
+  // it sends (first name + badge name only), and that it is entirely opt-in.
+  assert.match(PRIVACY, /badge/i, "privacy policy must mention badge sharing");
+  assert.match(PRIVACY, /first name/i, "must specify that only the first name is shared");
+  assert.match(PRIVACY, /opt.in|voluntar/i, "must make clear that sharing is opt-in");
+});
+
+const MIGRATION_12 = readFileSync(
+  new URL("../supabase/migrations/20260914001200_referral_write_protection.sql", import.meta.url), "utf-8"
+);
+
+test("migration 001200: referral_code is protected from authenticated-role mutation", () => {
+  assert.match(MIGRATION_12, /referral_code is distinct from old\.referral_code/i);
+});
+
+test("migration 001200: referred_by is write-once — cannot be changed once set", () => {
+  assert.match(MIGRATION_12, /old\.referred_by is not null/i);
+  assert.match(MIGRATION_12, /new\.referred_by is distinct from old\.referred_by/i);
+});
+
+test("migration 001200: referred_count is blocked from authenticated-role writes", () => {
+  assert.match(MIGRATION_12, /new\.referred_count is distinct from old\.referred_count/i);
+});
+
+test("migration 001200: protection is scoped to authenticated role so service-role webhook still works", () => {
+  assert.match(MIGRATION_12, /current_user = 'authenticated'/i);
+});
