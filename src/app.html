@@ -858,12 +858,17 @@ function gradeToLevel(g){ return GRADE_TO_LEVEL[g] || 13; }
 function gradeLabel(g){ return g === 1 ? "Grade 1" : "Grade " + g; }
 const WEEK_TIER={1:1,2:1,3:1,4:2,5:2,6:2,7:3,8:3,9:3,10:3};
 const MOCK_WEEKS={2:1,4:2,6:3,8:4,10:5};
-// Themed week titles per docs/DESIGN_SYSTEM.md (design handoff, screen 3).
-// Purely a label — doesn't affect sampling or scoring.
+// Week labels — reflect the program's tier progression, not CogAT subtest names.
+// Option A (chosen 2026-09-16): softened from the original design-handoff titles,
+// which named individual CogAT subtests ("Analogies and opposites", "Figure matrices",
+// etc.) but the schedule doesn't focus on those — every week rotates all three
+// batteries. The old titles implied a subject-focus the schedule doesn't deliver.
+// Revert this commit to restore the original subtest-named titles if a future
+// content reorg makes a week genuinely battery-specific.
 const WEEK_TITLES = {
-  1:"Getting your bearings", 2:"Analogies and opposites", 3:"Number series",
-  4:"Figure matrices", 5:"Sentence completion", 6:"Quantitative relations",
-  7:"Paper folding", 8:"Mixed sets", 9:"Pace and stamina", 10:"Final rehearsal"
+  1:"Getting your bearings", 2:"Building momentum",      3:"Finding your rhythm",
+  4:"Stepping up the pace",  5:"Pushing through",        6:"Consistency under pressure",
+  7:"High-level practice",   8:"Full-battery challenge", 9:"Pace and stamina", 10:"Final rehearsal"
 };
 // Strand color tokens for consistent use in ring/bar fills, badges, and dots.
 const STRAND_COLOR = {verbal:"var(--flare-500)", quant:"var(--lagoon-500)", nonverbal:"var(--violet-500)"};
