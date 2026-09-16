@@ -4,9 +4,11 @@
   "private": true,
   "description": "CogAT prep app for gifted/advanced-learning admissions testing.",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "jsdom": "^24.0.0"
   }
 }
