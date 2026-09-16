@@ -1,4 +1,4 @@
-// Parent-account auth (Epic 1, E1-2).
+// Parent-account auth — Epic 1, E1-2.
 //
 // This module is a thin, testable wrapper around Supabase Auth. It's a no-op
 // in local-only mode — the sign-in screen won't render, and the rest of the
