@@ -187,7 +187,7 @@ BSD (and most CogAT districts) accept parent-initiated testing applications for 
 
 | ID | Pri | Status | Feature | Description / Acceptance Criteria | Notes |
 |---|---|---|---|---|---|
-| E7-1 | P2 | ⬜ | Org/seat account model | A license entity that owns multiple family accounts (a tutoring center or PTA), with a seat count and expiration. | New `organizations` table, families optionally linked to one |
+| E7-1 | P2 | ✅ | Org/seat account model | A license entity that owns multiple family accounts (a tutoring center or PTA), with a seat count and expiration. | **Done:** `organizations` table (id uuid pk, name not null, slug unique nullable, seat_count integer check≥0, seat_expires_at nullable, owner_user_id → auth.users, created_at). `families.organization_id` uuid FK → organizations ON DELETE SET NULL, partial index, write-protected by the extended `block_entitlement_self_grant` trigger. Two SELECT-only RLS policies on organizations: one for linked family members (via families.owner_id = auth.uid()), one for the org owner; no INSERT/UPDATE/DELETE for authenticated role (org provisioning is service-role). Migration `20260914001300_org_accounts.sql` applied to hosted DB. 22 tests in `tests/org.test.mjs`. |
 | E7-2 | P2 | ⬜ | Org usage dashboard | Admin view for a center/district: seats used, completion rates across their families (aggregate only — not individual quiz answers, for privacy). | |
 | E7-3 | P3 | ⬜ | Bulk roster import | CSV upload of student first-names/grades for an org to pre-populate seats. | |
 | E7-4 | P3 | ⬜ | White-label theming | Swap logo/color tokens per org for a co-branded experience. | Low priority until a specific B2B deal needs it |
