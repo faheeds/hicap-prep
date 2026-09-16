@@ -1721,9 +1721,18 @@ function dashboardHTML(){
           const chipStyle = b.earned
             ? `background:${STRAND_COLOR[strand]};`
             : ``;
+          const firstName = _attrEsc(st.name.split(/\s+/)[0]);
+          const badgeLabel = _attrEsc(b.label);
+          const shareBtn = b.earned
+            ? `<button class="btn btn-ghost" style="font-size:10px;padding:0 4px;min-height:20px;margin-top:2px;"
+                onclick="shareBadge(this.dataset.n,this.dataset.b)"
+                data-n="${firstName}" data-b="${badgeLabel}"
+                aria-label="Share ${badgeLabel} badge">Share</button>`
+            : "";
           return `<div class="badge ${b.earned?"":"locked"}">
             <div class="chip" style="${chipStyle}">${ICON("award",{size:16})}</div>
             <div class="lbl">${b.label}</div>
+            ${shareBtn}
           </div>`;
         }).join("")}
       </div>
@@ -2512,6 +2521,21 @@ function copyReferralLink(){
   }
 }
 
+/* ---------- BADGE SHARING (Epic 6, E6-5) ---------- */
+// Share text contains only the student's first name + badge name.
+// No scores, no grade, no last name ever leave the app.
+function shareBadge(firstName, badgeName){
+  const text = `${firstName} just earned the "${badgeName}" badge on HiCap Prep!`;
+  if(navigator.share){
+    navigator.share({ text }).catch(()=>{ /* user cancelled or share failed */ });
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>showAlert("Copied to clipboard!")).catch(()=>{});
+  } else {
+    showAlert("Sharing is not supported on this browser.");
+  }
+}
+function _attrEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;"); }
+
 /* ---------- PARENT AREA ---------- */
 // PIN gate — design screen 7.
 //
@@ -3225,6 +3249,7 @@ if(typeof window!=="undefined"){
   window.shouldShowAnalyticsBanner=shouldShowAnalyticsBanner; window.analyticsBannerHTML=analyticsBannerHTML;
   window.trackEvent=trackEvent;
   window.copyReferralLink=copyReferralLink; window.referralSectionHTML=referralSectionHTML;
+  window.shareBadge=shareBadge;
 } // debug mirror
 </script>
 </body>

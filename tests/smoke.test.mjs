@@ -480,6 +480,78 @@ test("leaderboard ranks by completion/streak, not raw accuracy", () => {
   assert.ok(doc.getElementById("app").textContent.includes("Effort board"));
 });
 
+test("E6-5: shareBadge is exposed on window", () => {
+  assert.strictEqual(typeof window.shareBadge, "function");
+});
+
+test("E6-5: earned badges render a Share button; locked badges do not", () => {
+  // Give the student at least one session so the "First Steps" badge is earned.
+  const anyId = Object.keys(window.APP.students)[0];
+  window.S.mode = "student";
+  window.selectStudent(anyId);
+  const st = window.APP.students[anyId];
+  // Ensure the student has at least one history entry so "First Steps" is earned.
+  if(!st.history || st.history.length === 0){
+    st.history = [{ date: new Date().toISOString(), title: "Test", kind: "practice",
+                    correct: 5, total: 10, bySub: {}, wrongQuestions: [] }];
+  }
+  window.S.view = "dashboard";
+  window.render();
+  const app = doc.getElementById("app");
+  // At least one Share button exists for the earned badge.
+  const shareButtons = Array.from(app.querySelectorAll("button")).filter(b => b.textContent.trim() === "Share");
+  assert.ok(shareButtons.length >= 1, "earned badges must have a Share button");
+  // Locked badges must NOT have a share button next to them.
+  const lockedBadges = Array.from(app.querySelectorAll(".badge.locked"));
+  lockedBadges.forEach(div => {
+    const btn = div.querySelector("button");
+    assert.ok(!btn, "locked badge must not contain a share button");
+  });
+});
+
+test("E6-5: shareBadge share text contains only the passed name + badge name, no scores or grade", () => {
+  // shareBadge receives an already-trimmed first name (the badge button splits
+  // st.name on whitespace before writing it to data-n). Verify the share text
+  // is clean — no scores, no grade references.
+  let captured = null;
+  window.navigator.share = (data) => { captured = data; return Promise.resolve(); };
+  window.shareBadge("Alex", "First Steps");
+  assert.ok(captured, "navigator.share should have been called");
+  assert.match(captured.text, /Alex/, "share text must include the name");
+  assert.match(captured.text, /First Steps/, "share text must include badge name");
+  assert.doesNotMatch(captured.text, /\d+%/, "share text must not include percentage scores");
+  assert.doesNotMatch(captured.text, /grade/i, "share text must not include grade info");
+});
+
+test("E6-5: badge share button data-n attribute contains only the first word of the student name", () => {
+  // A student with a multi-word name must have only the first word in data-n
+  // so the share text never leaks a last name.
+  const anyId = Object.keys(window.APP.students)[0];
+  const st = window.APP.students[anyId];
+  const originalName = st.name;
+  st.name = "Alex Smith";
+  window.S.view = "dashboard";
+  window.render();
+  const app = doc.getElementById("app");
+  const shareBtn = Array.from(app.querySelectorAll("button[data-n]")).find(b => b.textContent.trim() === "Share");
+  if(shareBtn){
+    assert.equal(shareBtn.dataset.n, "Alex", "data-n must be the first name only, not the full name");
+    assert.ok(!shareBtn.dataset.n.includes("Smith"), "last name must not appear in data-n");
+  }
+  st.name = originalName; // restore
+});
+
+test("E6-5: shareBadge falls back to clipboard when navigator.share is unavailable", async () => {
+  delete window.navigator.share; // remove share API
+  let clipText = null;
+  window.navigator.clipboard = { writeText: async (t) => { clipText = t; } };
+  window.shareBadge("Sam", "3-Day Streak");
+  await new Promise(r => window.setTimeout(r, 50)); // let the promise resolve
+  assert.ok(clipText !== null, "clipboard.writeText should be called as fallback");
+  assert.match(clipText, /Sam/);
+  assert.match(clipText, /3-Day Streak/);
+});
+
 after(() => {
   dom.window.close();
 });
