@@ -103,6 +103,7 @@
         lastDate: row.streak_last_date || null,
       },
       badgesSeen: Array.isArray(row.badges_seen) ? row.badges_seen : [],
+      poolCursors: row.pool_cursors && typeof row.pool_cursors === "object" ? row.pool_cursors : {},
       history: historyForStudent || [],
     };
   }
@@ -135,6 +136,7 @@
       streak_longest: (st.streak && st.streak.longest) || 0,
       streak_last_date: (st.streak && st.streak.lastDate) || null,
       badges_seen: st.badgesSeen || [],
+      pool_cursors: st.poolCursors || {},
     };
   }
 

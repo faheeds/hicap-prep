@@ -100,6 +100,12 @@ test("retention: automation is gated on the app_settings feature flag, disabled 
   assert.doesNotMatch(sql, /cron\.unschedule/i, "cron.schedule entries should be left intact — no unschedule");
 });
 
+test("students table carries pool_cursors jsonb column for shuffled-bag sampling", () => {
+  const sql = readAllMigrations();
+  assert.match(sql, /pool_cursors\s+jsonb/i, "pool_cursors must be a jsonb column on students");
+  assert.match(sql, /default '\{\}'::jsonb/i, "pool_cursors must default to an empty object");
+});
+
 test("students/attempts/badges policies scope to caller's own family_id, not any family", () => {
   const sql = readAllMigrations();
   // A policy that forgets the family-owner subselect would let a signed-in

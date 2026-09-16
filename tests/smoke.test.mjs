@@ -158,6 +158,59 @@ test("PF Tier 1 covers 1-, 2-, AND 3-fold puzzles — not a difficulty regressio
   });
 });
 
+test("shuffled-bag sampling: questionId is stable and unique; drawFromBag exhausts the pool before cycling", () => {
+  // Synthetic pool — real question shape, but content chosen to be obviously distinct.
+  const makePool = (n) => Array.from({length: n}, (_, i) => ({
+    q: `Synthetic Q${i}`, o: [`A${i}`, `B${i}`, `C${i}`, `D${i}`], a: 0, e: `E${i}`
+  }));
+  const pool = makePool(6);
+
+  // questionId is stable and produces distinct values for each item.
+  const ids = pool.map(window.questionId);
+  assert.equal(new Set(ids).size, 6, "questionId must be unique across pool items");
+  assert.equal(window.questionId(pool[0]), window.questionId(pool[0]), "questionId is deterministic");
+
+  // drawFromBag with null student falls back to pure random (no cursor side-effects).
+  const randomDraw = window.drawFromBag(null, "k", pool, 3);
+  assert.equal(randomDraw.length, 3, "null-student draw must return 3 items");
+
+  // With a student: draw 2 at a time from a 6-item pool — 3 draws exhaust one full cycle.
+  const student = { poolCursors: {} };
+  const key = "test-6-verbal-1-SC";
+  const seenInCycle1 = new Set();
+
+  for(let draw = 1; draw <= 3; draw++){
+    const items = window.drawFromBag(student, key, pool, 2);
+    assert.equal(items.length, 2, `draw ${draw}: must return 2 items`);
+    const drawIds = items.map(window.questionId);
+    assert.equal(new Set(drawIds).size, 2, `draw ${draw}: no intra-draw duplicates`);
+    for(const id of drawIds){
+      assert.ok(!seenInCycle1.has(id), `draw ${draw}: item already appeared in cycle 1 — bag not working`);
+      seenInCycle1.add(id);
+    }
+  }
+  assert.equal(seenInCycle1.size, 6, "all 6 pool items seen exactly once in cycle 1");
+  assert.equal(student.poolCursors[key].length, 0, "cursor is empty after full cycle");
+
+  // Cycle 2: fresh start — returns valid pool items with no intra-draw dups.
+  const c2 = window.drawFromBag(student, key, pool, 2);
+  assert.equal(c2.length, 2);
+  assert.equal(new Set(c2.map(window.questionId)).size, 2, "cycle 2: no intra-draw dups");
+  assert.equal(student.poolCursors[key].length, 4, "4 items remain after first draw of cycle 2");
+
+  // Draw spanning a cycle boundary: 6 items requested with only 4 remaining → wraps into cycle 3.
+  const bigDraw = window.drawFromBag(student, key, pool, 6);
+  assert.equal(bigDraw.length, 6, "draw spanning cycle boundary must return n items");
+  assert.equal(new Set(bigDraw.map(window.questionId)).size, 6, "no intra-draw dups across boundary");
+
+  // Stale-ID guard: IDs not in the pool are silently dropped and the cursor resets cleanly.
+  student.poolCursors[key] = ["stale-id-1", "stale-id-2"];
+  const afterStale = window.drawFromBag(student, key, pool, 2);
+  assert.equal(afterStale.length, 2, "stale cursor must still produce 2 valid items");
+  assert.ok(afterStale.every(q => pool.some(p => window.questionId(p) === window.questionId(q))),
+    "all drawn items must be from the real pool after stale-ID flush");
+});
+
 test("PF Tier 1: correct answer has exactly 2^n dots AND no two options share the same coordinate set", () => {
   // Guards against:
   //   (a) the anti-diagonal dis3 bug — pfUnfold(d, ["v","h","ad"]) always
